@@ -41,6 +41,21 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Binaries\Unity\Assets\AssetException.cs" />
+    <Compile Include="Binaries\Unity\Assets\AssetFile.cs" />
+    <Compile Include="Binaries\Unity\Assets\AssetHeader.cs" />
+    <Compile Include="Binaries\Unity\Assets\BaseClass.cs" />
+    <Compile Include="Binaries\Unity\Assets\FileIdentifier.cs" />
+    <Compile Include="Binaries\Unity\Assets\FileIdentifierTable.cs" />
+    <Compile Include="Binaries\Unity\Assets\ObjectInfo.cs" />
+    <Compile Include="Binaries\Unity\Assets\ObjectInfoTable.cs" />
+    <Compile Include="Binaries\Unity\Assets\StringTable.cs" />
+    <Compile Include="Binaries\Unity\Assets\Type.cs" />
+    <Compile Include="Binaries\Unity\Assets\TypeNode.cs" />
+    <Compile Include="Binaries\Unity\Assets\TypeNodeReader.cs" />
+    <Compile Include="Binaries\Unity\Assets\TypeNodeWriter.cs" />
+    <Compile Include="Binaries\Unity\Assets\TypeTree.cs" />
+    <Compile Include="Binaries\Unity\Assets\VersionInfo.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
