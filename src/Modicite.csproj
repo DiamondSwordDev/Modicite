@@ -41,23 +41,12 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Binaries\Unity\Assets\AssetException.cs" />
-    <Compile Include="Binaries\Unity\Assets\AssetFile.cs" />
-    <Compile Include="Binaries\Unity\Assets\AssetHeader.cs" />
-    <Compile Include="Binaries\Unity\Assets\BaseClass.cs" />
-    <Compile Include="Binaries\Unity\Assets\FileIdentifier.cs" />
-    <Compile Include="Binaries\Unity\Assets\FileIdentifierTable.cs" />
-    <Compile Include="Binaries\Unity\Assets\ObjectInfo.cs" />
-    <Compile Include="Binaries\Unity\Assets\ObjectInfoTable.cs" />
-    <Compile Include="Binaries\Unity\Assets\StringTable.cs" />
-    <Compile Include="Binaries\Unity\Assets\Type.cs" />
-    <Compile Include="Binaries\Unity\Assets\TypeNode.cs" />
-    <Compile Include="Binaries\Unity\Assets\TypeNodeReader.cs" />
-    <Compile Include="Binaries\Unity\Assets\TypeNodeWriter.cs" />
-    <Compile Include="Binaries\Unity\Assets\TypeTree.cs" />
-    <Compile Include="Binaries\Unity\Assets\VersionInfo.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Utilities\DataReader.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="UnitySerialization\" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
