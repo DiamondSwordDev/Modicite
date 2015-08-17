@@ -41,6 +41,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Construction\UnityFileConstruction.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Unity\Serialization\FileIdentifier.cs" />
@@ -48,12 +49,20 @@
     <Compile Include="Unity\Serialization\RTTIBaseClassDescriptor.cs" />
     <Compile Include="Unity\Serialization\RTTIClassHierarchyDescriptor.cs" />
     <Compile Include="Unity\Serialization\TypeNode.cs" />
+    <Compile Include="Unity\Serialization\UnityClassIDDatabase.cs" />
     <Compile Include="Unity\Serialization\UnityFile.cs" />
     <Compile Include="Unity\Serialization\UnityFileHeader.cs" />
     <Compile Include="Unity\Serialization\UnityFileMetadata.cs" />
     <Compile Include="Utilities\DataReader.cs" />
   </ItemGroup>
-  <ItemGroup />
+  <ItemGroup>
+    <Content Include="classes.txt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Construction\Objects\" />
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

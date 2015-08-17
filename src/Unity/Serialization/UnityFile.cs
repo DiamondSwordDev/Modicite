@@ -16,7 +16,7 @@ namespace Modicite.Unity.Serialization {
             this.filename = filename;
         }
 
-        public static UnityFile Load(string filename) {
+        public static UnityFile Load(string filename, bool loadObjectData) {
             UnityFile uf = new UnityFile(filename);
 
             DataReader reader = DataReader.OpenFile(filename, 1000000);
@@ -32,11 +32,16 @@ namespace Modicite.Unity.Serialization {
                 throw new FormatException("This does not support deserialization of files for Unity versions 5.0 and newer");
             }
 
-            reader.IsLittleEndian = uf.Header.Endianess == 0;
+            reader.IsLittleEndian = uf.Header.Endianness == 0;
 
             uf.Metadata = UnityFileMetadata.Read(reader);
             
-            uf.ObjectData = reader.ReadRemainingBytes();
+            if (loadObjectData) {
+                reader.JumpTo(uf.Header.DataOffset);
+                uf.ObjectData = reader.ReadRemainingBytes();
+            }
+
+            reader.Close();
 
             return uf;
         }

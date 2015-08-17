@@ -106,5 +106,10 @@ namespace Modicite.Utilities {
             }
             stream.Position = index;
         }
+
+
+        public void Close() {
+            stream.Close();
+        }
     }
 }

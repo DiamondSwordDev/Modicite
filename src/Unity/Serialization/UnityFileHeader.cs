@@ -8,7 +8,7 @@ namespace Modicite.Unity.Serialization {
         public int FileSize;
         public int Version;
         public int DataOffset;
-        public byte Endianess;
+        public byte Endianness;
 
 
         private UnityFileHeader() {
@@ -22,7 +22,7 @@ namespace Modicite.Unity.Serialization {
             ufh.FileSize = reader.ReadInt32();
             ufh.Version = reader.ReadInt32();
             ufh.DataOffset = reader.ReadInt32();
-            ufh.Endianess = reader.ReadByte();
+            ufh.Endianness = reader.ReadByte();
 
             reader.ReadBytes(3); //Read reserved bytes
 
