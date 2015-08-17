@@ -1,5 +1,7 @@
 using System;
 using System.IO;
+using System.Text;
+using System.Collections.Generic;
 
 namespace Modicite.Utilities {
 
@@ -37,41 +39,23 @@ namespace Modicite.Utilities {
             return readByte;
         }
 
-        private byte[] ReadBytes(int count) {
-            if (bytesBuffered + count > maxBuffer) {
-                stream.Flush();
-                bytesBuffered = 0;
+        public byte[] ReadBytes(int count) {
+            List<byte> bytes = new List<byte>();
+
+            for (int i = 0; i < count; i++) {
+                bytes.Add(ReadByte());
             }
-
-            byte[] bytes = new byte[count];
-
-            if (stream.Read(bytes, (int)stream.Position, count) < count) {
-                throw new InvalidDataException("Not enough bytes were able to be read from the file");
-            }
-
-            bytesBuffered += count;
-
-            return bytes;
+            
+            return bytes.ToArray();
         }
 
         private byte[] ReadEndianBytes(int count) {
-            if (bytesBuffered + count > maxBuffer) {
-                stream.Flush();
-                bytesBuffered = 0;
-            }
-
-            byte[] bytes = new byte[count];
-
-            if (stream.Read(bytes, (int)stream.Position, count) < count) {
-                throw new InvalidDataException("Not enough bytes were able to be read from the file");
-            }
+            byte[] bytes = ReadBytes(count);
 
             if (BitConverter.IsLittleEndian != IsLittleEndian) {
                 Array.Reverse(bytes);
             }
-
-            bytesBuffered += count;
-
+            
             return bytes;
         }
 
@@ -89,6 +73,23 @@ namespace Modicite.Utilities {
 
         public bool ReadBoolean() {
             return BitConverter.ToBoolean(new byte[] { ReadByte() }, 0);
+        }
+
+        public string ReadString() {
+            List<byte> bytes = new List<byte>();
+            byte b = 0;
+            while ((b = ReadByte()) != 0) {
+                bytes.Add(b);
+            }
+            return Encoding.ASCII.GetString(bytes.ToArray());
+        }
+
+        public byte[] ReadRemainingBytes() {
+            if (stream.Length - stream.Position == 0) {
+                return new byte[0];
+            } else {
+                return ReadBytes((int)(stream.Length - stream.Position));
+            }
         }
 
 
