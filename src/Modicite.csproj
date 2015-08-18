@@ -17,7 +17,7 @@
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
-    <OutputPath>bin\Debug\</OutputPath>
+    <OutputPath>..\bin\Debug\</OutputPath>
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
@@ -48,6 +48,8 @@
     <Compile Include="Unity\Serialization\ObjectInfo.cs" />
     <Compile Include="Unity\Serialization\RTTIBaseClassDescriptor.cs" />
     <Compile Include="Unity\Serialization\RTTIClassHierarchyDescriptor.cs" />
+    <Compile Include="Unity\Serialization\RTTIDatabaseMapping.cs" />
+    <Compile Include="Unity\Serialization\UnityRTTIDatabase.cs" />
     <Compile Include="Unity\Serialization\TypeNode.cs" />
     <Compile Include="Unity\Serialization\UnityClassIDDatabase.cs" />
     <Compile Include="Unity\Serialization\UnityFile.cs" />
@@ -62,6 +64,11 @@
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Construction\Objects\" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="types.dat">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
