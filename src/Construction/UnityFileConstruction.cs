@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Text;
+using Modicite.Utilities;
 using Modicite.Unity.Serialization;
 
 namespace Modicite.Construction {
@@ -23,15 +24,16 @@ namespace Modicite.Construction {
             if (!Directory.Exists(outputDir)) {
                 Directory.CreateDirectory(outputDir);
             }
-
+            
             StringBuilder builder = new StringBuilder();
 
             builder.AppendLine("Header {");
-            builder.AppendLine("    Version: " + uf.Header.Version.ToString() + ";");
-            builder.AppendLine("    Signature: \"" + uf.Metadata.ClassHierarchyDescriptor.Signature + "\";");
-            builder.AppendLine("    ClassHierarchyAttributes: " + uf.Metadata.ClassHierarchyDescriptor.Attributes.ToString("X8") + ";");
+            builder.AppendLine("  Version: " + uf.Header.Version.ToString() + ";");
+            builder.AppendLine("  Signature: \"" + uf.Metadata.ClassHierarchyDescriptor.Signature + "\";");
+            builder.AppendLine("  ClassHierarchyAttributes: 0x" + uf.Metadata.ClassHierarchyDescriptor.Attributes.ToString("X8") + ";");
             builder.AppendLine("}\n");
 
+            #region Includes
             foreach (FileIdentifier fi in uf.Metadata.FileIdentifiers) {
                 bool hasGUID = false;
                 foreach (byte b in fi.GUID) {
@@ -45,18 +47,18 @@ namespace Modicite.Construction {
                     builder.AppendLine("Include \"" + fi.FilePath + "\";\n");
                 } else {
                     builder.AppendLine("Include {");
-                    builder.AppendLine("    FilePath: \"" + fi.FilePath + "\";");
+                    builder.AppendLine("  FilePath: \"" + fi.FilePath + "\";");
 
                     if (fi.AssetPath != "") {
-                        builder.AppendLine("    AssetPath: \"" + fi.AssetPath + "\";");
+                        builder.AppendLine("  AssetPath: \"" + fi.AssetPath + "\";");
                     }
 
                     if (fi.Type != 0) {
-                        builder.AppendLine("    Type: " + fi.Type.ToString() + ";");
+                        builder.AppendLine("  Type: " + fi.Type.ToString() + ";");
                     }
 
                     if (hasGUID) {
-                        builder.Append("    GUID:");
+                        builder.Append("  GUID:");
                         foreach (byte b in fi.GUID) {
                             builder.Append(" " + b.ToString("X2"));
                         }
@@ -66,37 +68,52 @@ namespace Modicite.Construction {
                     builder.AppendLine("}\n");
                 }
             }
-
+            #endregion
+            
             foreach (ObjectInfo oi in uf.Metadata.ObjectInfoList) {
                 builder.AppendLine("Object " + oi.ObjectID.ToString() + " {");
 
                 if (oi.ClassID == 114) {
-                    builder.AppendLine("    Class: \"" + UnityClassIDDatabase.Classes[oi.ClassID] + "\";");
-                    builder.AppendLine("    TypeID: " + oi.TypeID.ToString() + ";");
+                    builder.AppendLine("  Class: \"" + UnityClassIDDatabase.Classes[oi.ClassID] + "\";");
+                    builder.AppendLine("  TypeID: " + oi.TypeID.ToString() + ";");
                 } else {
-                    builder.AppendLine("    Class: \"" + UnityClassIDDatabase.Classes[oi.ClassID] + "\";");
+                    builder.AppendLine("  Class: \"" + UnityClassIDDatabase.Classes[oi.ClassID] + "\";");
                 }
 
                 if (oi.IsDestroyed != 0) {
-                    builder.AppendLine("    IsDestroyed: " + oi.IsDestroyed.ToString() + ";");
+                    builder.AppendLine("  IsDestroyed: " + oi.IsDestroyed.ToString() + ";");
                 }
                 
                 switch (oi.ClassID) {
+                    case 114:
+                        break;
                     default:
-                        try {
+                        //try {
+
                             TypeNode tn = UnityRTTIDatabase.GetNewestTypeForClass(oi.ClassID);
+                            
+                            byte[] typeData = new byte[oi.ByteSize];
+                            for (int i = 0; i < oi.ByteSize; i++) {
+                                typeData[i] = uf.ObjectData[oi.ByteStart + i];
+                            }
+                            DataReader reader = DataReader.FromBytes(typeData);
+                            reader.IsLittleEndian = uf.Header.Endianness == 0;
+
                             StringBuilder dataBuilder = new StringBuilder();
-                            dataBuilder.AppendLine("    Data: {");
-                            AppendTypeNode(tn, oi, uf.ObjectData, dataBuilder, 2, uf.Header.Endianness == 0);
-                            dataBuilder.AppendLine("    }");
+                            dataBuilder.AppendLine("  Data: {");
+
+                            AppendTypeNode(tn, reader, dataBuilder, "    ");
+
+                            dataBuilder.AppendLine("  }");
                             builder.AppendLine(dataBuilder.ToString());
-                        } catch (Exception ex) {
+
+                        /*} catch (Exception ex) {
                             builder.Append("    HexData:");
                             for (int i = 0; i < oi.ByteSize; i++) {
                                 builder.Append(" " + uf.ObjectData[i + oi.ByteStart].ToString("X2"));
                             }
                             builder.AppendLine(";");
-                        }
+                        }*/
                         break;
                 }
 
@@ -106,41 +123,56 @@ namespace Modicite.Construction {
             File.WriteAllText(outputDir.Replace("\\", "/").TrimEnd('/') + "/main.ubml", builder.ToString().Replace("\r", ""));
         }
 
-        private static void AppendTypeNode(TypeNode tn, ObjectInfo oi, byte[] objectData, StringBuilder builder, int indentation, bool isLittleEndian) {
-            string indent = "";
-            for (int i = 0; i < indentation; i++) {
-                indent += "    ";
-            }
-            
+        private static void AppendTypeNode(TypeNode tn, DataReader reader, StringBuilder builder, string indentation) {
             if (tn.IsArray == 1) {
-                builder.Append(indent + ".Array: ");
-            } else {
-                builder.Append(indent + tn.Type + " " + tn.Name + ": ");
-            }
-            
-            if (tn.NumberOfChildren < 1) {
-                byte[] data = new byte[tn.ByteSize];
-                for (int i = 0; i < tn.ByteSize; i++) {
-                    data[i] = objectData[i + tn.Index + oi.ByteStart];
+                
+                if (tn.NumberOfChildren < 1) {
+                    throw new InvalidDataException("An array TypeNode must have size and data children");
                 }
 
-                if (BitConverter.IsLittleEndian != isLittleEndian) {
-                    Array.Reverse(data);
+                TypeNode dataNode = tn.Children[1];
+
+                builder.Append(indentation + ".Array " + dataNode.Type + ":");
+
+                int size = reader.ReadInt32();
+
+                if (dataNode.NumberOfChildren < 1) {
+                    for (int i = 0; i < size; i++) {
+                        builder.Append("\n" + indentation + " ");
+                        byte[] data = reader.ReadBytes(dataNode.ByteSize);
+                        foreach (byte b in data) {
+                            builder.Append(" " + b.ToString("X2"));
+                        }
+                    }
+                    builder.AppendLine(";");
+                } else {
+                    builder.AppendLine(" {");
+                    for (int i = 0; i < size; i++) {
+                        AppendTypeNode(dataNode, reader, builder, indentation + "  ");
+                    }
+                    builder.AppendLine(indentation + "}");
                 }
-                
-                builder.AppendLine(GetStringFromTypedBytes(tn.Type, data) + ";");
             } else {
-                builder.AppendLine("{");
-                foreach (TypeNode node in tn.Children) {
-                    AppendTypeNode(node, oi, objectData, builder, indentation + 1, isLittleEndian);
+
+                builder.Append(indentation + tn.Type + " " + tn.Name + ":");
+
+                if (tn.NumberOfChildren < 1) {
+                    byte[] data = reader.ReadBytes(tn.ByteSize);
+                    foreach (byte b in data) {
+                        builder.Append(" " + b.ToString("X2"));
+                    }
+                    builder.AppendLine(";");
+                } else {
+                    builder.AppendLine(" {");
+                    foreach (TypeNode child in tn.Children) {
+                        AppendTypeNode(child, reader, builder, indentation + "  ");
+                    }
+                    builder.AppendLine(indentation + "}");
                 }
-                builder.AppendLine(indent + "}");
             }
         }
-
+        
         private static string GetStringFromTypedBytes(string type, byte[] data) {
-            int byteLength;
-
             switch (type) {
                 case "bool":
                     return data[0] == 0 ? "False" : "True";
@@ -149,72 +181,35 @@ namespace Modicite.Construction {
                 case "UInt8":
                     return data[0].ToString();
                 case "char":
-                    return data[0] > 31 && data[0] < 127 ? Encoding.ASCII.GetString(new byte[] { data[0] }) : "0x" + data[0].ToString("X2");
+                    return data[0] > 31 && data[0] < 127 ? Encoding.ASCII.GetString(new byte[] { data[0] }) : data[0].ToString();
                 case "SInt16":
+                    return BitConverter.ToInt16(data, 0).ToString();
                 case "short":
+                    return BitConverter.ToInt16(data, 0).ToString();
                 case "UInt16":
+                    return BitConverter.ToUInt16(data, 0).ToString();
                 case "unsigned short":
-                    byteLength = 2;
-                    break;
+                    return BitConverter.ToUInt16(data, 0).ToString();
                 case "SInt32":
+                    return BitConverter.ToInt32(data, 0).ToString();
                 case "int":
+                    return BitConverter.ToInt32(data, 0).ToString();
                 case "UInt32":
+                    return BitConverter.ToUInt32(data, 0).ToString();
                 case "unsigned int":
+                    return BitConverter.ToUInt32(data, 0).ToString();
                 case "float":
-                    byteLength = 4;
-                    break;
+                    return BitConverter.ToSingle(data, 0).ToString();
                 case "SInt64":
+                    return BitConverter.ToInt64(data, 0).ToString();
                 case "long":
+                    return BitConverter.ToInt64(data, 0).ToString();
                 case "UInt64":
+                    return BitConverter.ToUInt64(data, 0).ToString();
                 case "unsigned long":
+                    return BitConverter.ToUInt64(data, 0).ToString();
                 case "double":
-                    byteLength = 8;
-                    break;
-                default:
-                    throw new InvalidOperationException("Unable to convert bytes to a string of the given type");
-            }
-
-            byte[] bytes = new byte[byteLength];
-
-            if (BitConverter.IsLittleEndian) {
-                for (int i = 0; i < data.Length; i++) {
-                    bytes[i] = data[i];
-                }
-            } else {
-                for (int i = 0; i < data.Length; i++) {
-                    bytes[bytes.Length - 1 - i] = data[data.Length - 1 - i];
-                }
-            }
-
-            switch (type) {
-                case "SInt16":
-                    return BitConverter.ToInt16(bytes, 0).ToString();
-                case "short":
-                    return BitConverter.ToInt16(bytes, 0).ToString();
-                case "UInt16":
-                    return BitConverter.ToUInt16(bytes, 0).ToString();
-                case "unsigned short":
-                    return BitConverter.ToUInt16(bytes, 0).ToString();
-                case "SInt32":
-                    return BitConverter.ToInt32(bytes, 0).ToString();
-                case "int":
-                    return BitConverter.ToInt32(bytes, 0).ToString();
-                case "UInt32":
-                    return BitConverter.ToUInt32(bytes, 0).ToString();
-                case "unsigned int":
-                    return BitConverter.ToUInt32(bytes, 0).ToString();
-                case "float":
-                    return BitConverter.ToSingle(bytes, 0).ToString();
-                case "SInt64":
-                    return BitConverter.ToInt64(bytes, 0).ToString();
-                case "long":
-                    return BitConverter.ToInt64(bytes, 0).ToString();
-                case "UInt64":
-                    return BitConverter.ToUInt64(bytes, 0).ToString();
-                case "unsigned long":
-                    return BitConverter.ToUInt64(bytes, 0).ToString();
-                case "double":
-                    return BitConverter.ToDouble(bytes, 0).ToString();
+                    return BitConverter.ToDouble(data, 0).ToString();
                 default:
                     throw new InvalidOperationException("Unable to convert bytes to a string of the given type");
             }

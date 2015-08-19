@@ -7,13 +7,13 @@ namespace Modicite.Utilities {
 
     class DataReader {
 
-        private FileStream stream;
+        private Stream stream;
         private long bytesBuffered = 0;
         private long maxBuffer = 0;
         public bool IsLittleEndian = true;
 
 
-        private DataReader(FileStream stream, long maxBuffer) {
+        private DataReader(Stream stream, long maxBuffer) {
             this.stream = stream;
             this.maxBuffer = maxBuffer;
         }
@@ -23,6 +23,13 @@ namespace Modicite.Utilities {
             stream.Position = 0;
             stream.Flush(); //Is this necessary?
             return new DataReader(stream, maxBuffer);
+        }
+
+        public static DataReader FromBytes(byte[] data) {
+            MemoryStream stream = new MemoryStream(data, false);
+            stream.Position = 0;
+            stream.Flush(); //Is this necessary?
+            return new DataReader(stream, Int32.MaxValue);
         }
 
 
