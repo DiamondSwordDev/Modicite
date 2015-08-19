@@ -84,37 +84,29 @@ namespace Modicite.Construction {
                     builder.AppendLine("  IsDestroyed: " + oi.IsDestroyed.ToString() + ";");
                 }
                 
-                switch (oi.ClassID) {
-                    case 114:
-                        break;
-                    default:
-                        //try {
-
-                            TypeNode tn = UnityRTTIDatabase.GetNewestTypeForClass(oi.ClassID);
+                try {
+                    TypeNode tn = UnityRTTIDatabase.GetNewestTypeForClass(oi.ClassID);
                             
-                            byte[] typeData = new byte[oi.ByteSize];
-                            for (int i = 0; i < oi.ByteSize; i++) {
-                                typeData[i] = uf.ObjectData[oi.ByteStart + i];
-                            }
-                            DataReader reader = DataReader.FromBytes(typeData);
-                            reader.IsLittleEndian = uf.Header.Endianness == 0;
+                    byte[] typeData = new byte[oi.ByteSize];
+                    for (int i = 0; i < oi.ByteSize; i++) {
+                        typeData[i] = uf.ObjectData[oi.ByteStart + i];
+                    }
+                    DataReader reader = DataReader.FromBytes(typeData);
+                    reader.IsLittleEndian = uf.Header.Endianness == 0;
 
-                            StringBuilder dataBuilder = new StringBuilder();
-                            dataBuilder.AppendLine("  Data: {");
+                    StringBuilder dataBuilder = new StringBuilder();
+                    dataBuilder.AppendLine("  Data: {");
 
-                            AppendTypeNode(tn, reader, dataBuilder, "    ");
+                    AppendTypeNode(tn, reader, dataBuilder, "    ");
 
-                            dataBuilder.AppendLine("  }");
-                            builder.AppendLine(dataBuilder.ToString());
-
-                        /*} catch (Exception ex) {
-                            builder.Append("    HexData:");
-                            for (int i = 0; i < oi.ByteSize; i++) {
-                                builder.Append(" " + uf.ObjectData[i + oi.ByteStart].ToString("X2"));
-                            }
-                            builder.AppendLine(";");
-                        }*/
-                        break;
+                    dataBuilder.AppendLine("  }");
+                    builder.AppendLine(dataBuilder.ToString());
+                } catch (Exception ex) {
+                    builder.Append("    HexData:");
+                    for (int i = 0; i < oi.ByteSize; i++) {
+                        builder.Append(" " + uf.ObjectData[i + oi.ByteStart].ToString("X2"));
+                    }
+                    builder.AppendLine(";");
                 }
 
                 builder.AppendLine("}\n");
@@ -123,47 +115,62 @@ namespace Modicite.Construction {
             File.WriteAllText(outputDir.Replace("\\", "/").TrimEnd('/') + "/main.ubml", builder.ToString().Replace("\r", ""));
         }
 
-        private static void AppendTypeNode(TypeNode tn, DataReader reader, StringBuilder builder, string indentation) {
+        private static void AppendTypeNode(TypeNode tn, DataReader reader, StringBuilder builder, string indentation, bool skipName = false) {
             if (tn.IsArray == 1) {
                 
-                if (tn.NumberOfChildren < 1) {
-                    throw new InvalidDataException("An array TypeNode must have size and data children");
-                }
-
                 TypeNode dataNode = tn.Children[1];
 
                 builder.Append(indentation + ".Array " + dataNode.Type + ":");
 
                 int size = reader.ReadInt32();
 
+                if (size == 0) {
+                    builder.AppendLine(" .Empty;");
+                    return;
+                }
+
                 if (dataNode.NumberOfChildren < 1) {
                     for (int i = 0; i < size; i++) {
-                        builder.Append("\n" + indentation + " ");
                         byte[] data = reader.ReadBytes(dataNode.ByteSize);
-                        foreach (byte b in data) {
-                            builder.Append(" " + b.ToString("X2"));
-                        }
+                        builder.Append(" " + GetStringFromTypedBytes(dataNode.Type, data));
                     }
                     builder.AppendLine(";");
                 } else {
                     builder.AppendLine(" {");
                     for (int i = 0; i < size; i++) {
-                        AppendTypeNode(dataNode, reader, builder, indentation + "  ");
+                        AppendTypeNode(dataNode, reader, builder, indentation + "  ", true);
                     }
                     builder.AppendLine(indentation + "}");
                 }
             } else {
 
-                builder.Append(indentation + tn.Type + " " + tn.Name + ":");
+                if (skipName) {
+                    builder.Append(indentation + ".: ");
+                } else {
+                    builder.Append(indentation + tn.Type + " " + tn.Name + ": ");
+                }
+
+                if (tn.Type == "string") {
+                    if (tn.NumberOfChildren < 1 || tn.Children[0].IsArray != 1 || tn.Children[0].Children[1].Type != "char") {
+                        throw new FormatException("Children of TypeNode are not in the correct format for a string field");
+                    }
+
+                    int size = reader.ReadInt32();
+
+                    builder.Append("\"");
+                    for (int i = 0; i < size; i++) {
+                        builder.Append(Encoding.UTF8.GetString(new byte[] { reader.ReadByte() }));
+                    }
+                    builder.AppendLine("\";");
+
+                    return;
+                }
 
                 if (tn.NumberOfChildren < 1) {
                     byte[] data = reader.ReadBytes(tn.ByteSize);
-                    foreach (byte b in data) {
-                        builder.Append(" " + b.ToString("X2"));
-                    }
-                    builder.AppendLine(";");
+                    builder.AppendLine(GetStringFromTypedBytes(tn.Type, data) + ";");
                 } else {
-                    builder.AppendLine(" {");
+                    builder.AppendLine("{");
                     foreach (TypeNode child in tn.Children) {
                         AppendTypeNode(child, reader, builder, indentation + "  ");
                     }
@@ -181,7 +188,7 @@ namespace Modicite.Construction {
                 case "UInt8":
                     return data[0].ToString();
                 case "char":
-                    return data[0] > 31 && data[0] < 127 ? Encoding.ASCII.GetString(new byte[] { data[0] }) : data[0].ToString();
+                    return data[0] > 31 && data[0] < 127 ? Encoding.UTF8.GetString(new byte[] { data[0] }) : data[0].ToString();
                 case "SInt16":
                     return BitConverter.ToInt16(data, 0).ToString();
                 case "short":

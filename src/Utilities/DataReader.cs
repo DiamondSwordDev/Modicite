@@ -88,7 +88,7 @@ namespace Modicite.Utilities {
             while ((b = ReadByte()) != 0) {
                 bytes.Add(b);
             }
-            return Encoding.ASCII.GetString(bytes.ToArray());
+            return Encoding.UTF8.GetString(bytes.ToArray());
         }
 
         public byte[] ReadRemainingBytes() {

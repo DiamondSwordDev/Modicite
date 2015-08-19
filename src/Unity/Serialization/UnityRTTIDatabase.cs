@@ -148,7 +148,7 @@ namespace Modicite.Unity.Serialization {
                             break;
                         }
                     } else if (Char.IsLetter(version[i])) {
-                        if (Encoding.ASCII.GetBytes(new char[] { version[i] })[0] > Encoding.ASCII.GetBytes(new char[] { newest[i] })[0]) {
+                        if (Encoding.UTF8.GetBytes(new char[] { version[i] })[0] > Encoding.UTF8.GetBytes(new char[] { newest[i] })[0]) {
                             newest = version;
                             break;
                         }
