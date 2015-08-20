@@ -117,6 +117,7 @@ namespace Modicite.Utilities {
 
         public void Close() {
             stream.Close();
+            stream.Dispose();
         }
     }
 }

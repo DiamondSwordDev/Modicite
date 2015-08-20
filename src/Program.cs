@@ -2,7 +2,7 @@
 using System.IO;
 using Modicite.Utilities;
 using Modicite.Unity.Serialization;
-using Modicite.Construction;
+using Modicite.UBML;
 
 namespace Modicite.CLI {
 
@@ -21,16 +21,16 @@ namespace Modicite.CLI {
             Console.WriteLine("Loading Runtime Type Information database...");
             UnityRTTIDatabase.Load("./types.dat");
             
-            Console.WriteLine("Loading 'level1'...");
-            UnityFile uf = UnityFile.Load("./level1", true);
+            Console.WriteLine("Loading 'level0'...");
+            UnityFile uf = UnityFile.Load("./level0", true);
 
             Console.WriteLine("Cleaning output...");
             if (Directory.Exists("./output")) {
                 Directory.Delete("./output", true);
             }
-
-            Console.WriteLine("Deconstructing 'level1'...");
-            UnityFileConstruction.Deconstruct("./output", uf);
+            
+            Console.WriteLine("Deconstructing 'level0'...");
+            UBMLFileBuilder.Build("./output", uf);
 
             Console.WriteLine("Done.");
             Console.ReadKey();
