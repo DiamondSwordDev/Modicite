@@ -25,11 +25,11 @@ namespace Modicite.Unity.Serialization {
             uf.Header = UnityFileHeader.Read(reader);
 
             if (uf.Header.Version < 9) {
-                throw new FormatException("This does not support deserialization of files for Unity versions 3.4 and older");
+                throw new FormatException("This does not support deserialization of files for Unity versions 3.4 and older.");
             }
 
             if (uf.Header.Version >= 14) {
-                throw new FormatException("This does not support deserialization of files for Unity versions 5.0 and newer");
+                throw new FormatException("This does not support deserialization of files for Unity versions 5.0 and newer.");
             }
 
             reader.IsLittleEndian = uf.Header.Endianness == 0;

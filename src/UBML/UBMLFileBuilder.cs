@@ -9,17 +9,21 @@ namespace Modicite.UBML {
 
     static class UBMLFileBuilder {
 
+        //Approximation. Files can be anywhere from 0x to 1.5x this value;
+        private static readonly int CLASS_POINTS_PER_FILE = 50;
+        private static readonly int BYTES_PER_CLASS_POINT = 16;
+
         public static void Build(string outputDirectory, UnityFile uf) {
             if (UnityClassIDDatabase.Classes == null || UnityClassIDDatabase.Classes.Count < 1) {
-                throw new InvalidOperationException("The class ID database must be loaded before the UBML deconstructor can be used");
+                throw new InvalidOperationException("The class ID database must be loaded before the UBML deconstructor can be used.");
             }
 
             if (UnityRTTIDatabase.Version == -1) {
-                throw new InvalidOperationException("The RTTI database must be loaded before the UBML deconstructor can be used");
+                throw new InvalidOperationException("The RTTI database must be loaded before the UBML deconstructor can be used.");
             }
 
             if (uf.Metadata.ClassHierarchyDescriptor.NumberOfBaseClasses > 0) {
-                throw new InvalidDataException("Runtime Type Information is not supported by the UBML deconstructor");
+                throw new InvalidDataException("Runtime Type Information is not supported by the UBML deconstructor.");
             }
 
             string baseDirectory = outputDirectory.Replace("\\", "/").TrimEnd('/');
@@ -28,103 +32,252 @@ namespace Modicite.UBML {
                 Directory.CreateDirectory(baseDirectory);
             }
 
-            StringBuilder mainBuilder = new StringBuilder();
+            #region Write Header File
 
+            StringBuilder mainBuilder = new StringBuilder();
             mainBuilder.AppendLine("Header {");
             mainBuilder.AppendLine("  Version: " + uf.Header.Version.ToString() + ";");
             mainBuilder.AppendLine("  Signature: \"" + uf.Metadata.ClassHierarchyDescriptor.Signature + "\";");
             mainBuilder.AppendLine("  ClassHierarchyAttributes: 0x" + uf.Metadata.ClassHierarchyDescriptor.Attributes.ToString("X8") + ";");
             mainBuilder.AppendLine("}\n");
+            AppendIncludes(uf.Metadata.FileIdentifiers, mainBuilder);
+            File.WriteAllText(baseDirectory + "/header.ubml", mainBuilder.ToString().Replace("\r", ""));
 
-            //50 objects is simply an arbitrary number. It'd be about 30Kb, in theory.
-            const int OBJECTS_PER_FILE = 10;
+            #endregion
 
-            if (uf.Metadata.NumberOfObjectInfoListMembers > OBJECTS_PER_FILE) {
-                AppendIncludes(uf.Metadata.FileIdentifiers, mainBuilder);
-                File.WriteAllText(baseDirectory + "/header.ubml", mainBuilder.ToString().Replace("\r", ""));
+            int fileIndex = 0;
+            StringBuilder fileBuilder = new StringBuilder();
+            int membersSize = 0;
 
-                Dictionary<short, int> objectCounts = new Dictionary<short, int>();
-                foreach (ObjectInfo oi in uf.Metadata.ObjectInfoList) {
-                    if (!objectCounts.ContainsKey(oi.ClassID)) {
-                        objectCounts[oi.ClassID] = 0;
+            foreach (ObjectInfo oi in uf.Metadata.ObjectInfoList) {
+                Console.ForegroundColor = ConsoleColor.Cyan;
+                Console.WriteLine("Object " + oi.ObjectID.ToString() + " (ClassID: " + oi.ClassID.ToString() + ")");
+
+                TypeNode baseNode = null;
+                try {
+                    baseNode = UnityRTTIDatabase.GetNewestTypeForClass(oi.ClassID);
+                } catch {
+                    #region RawData Object
+
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine("Raw Data");
+
+                    int memberSize = oi.ByteSize / (BYTES_PER_CLASS_POINT * 16);
+
+                    if (memberSize + membersSize > CLASS_POINTS_PER_FILE) {
+                        if (memberSize > CLASS_POINTS_PER_FILE) {
+                            throw new FormatException("Object member is larger than the specified maximum size.");
+                        } else {
+                            File.WriteAllText(baseDirectory + "/objects." + fileIndex.ToString() + ".ubml", fileBuilder.ToString());
+
+                            fileBuilder = new StringBuilder();
+
+                            fileIndex++;
+                            membersSize = 0;
+                        }
                     }
-                    objectCounts[oi.ClassID] += 1;
+
+                    fileBuilder.Append("Object ");
+                    fileBuilder.Append(oi.ObjectID.ToString());
+                    fileBuilder.Append(" {\n");
+
+                    fileBuilder.Append("  Class: \"");
+                    fileBuilder.Append(UnityClassIDDatabase.Classes[oi.ClassID]);
+                    fileBuilder.Append("\";\n");
+
+                    if (oi.ClassID != oi.TypeID) {
+                        fileBuilder.Append("  TypeID: ");
+                        fileBuilder.Append(oi.TypeID.ToString());
+                        fileBuilder.Append(";\n");
+                    }
+
+                    if (oi.IsDestroyed != 0) {
+                        fileBuilder.Append("  IsDestroyed: ");
+                        fileBuilder.Append(oi.IsDestroyed.ToString());
+                        fileBuilder.Append(";\n");
+                    }
+
+                    fileBuilder.Append("  RawData:");
+
+                    for (int i = 0; i < oi.ByteSize; i++) {
+                        fileBuilder.Append(" ");
+                        fileBuilder.Append(uf.ObjectData[oi.ByteStart + i].ToString());
+                    }
+
+                    fileBuilder.Append(";\n}\n\n");
+
+                    membersSize += memberSize;
+
+                    #endregion
                 }
                 
-                while (objectCounts.Count > 0) {
-                    int numberOfObjectsAdded = 0;
-                    string filenameSuffix = "";
-                    StringBuilder objectBuilder = new StringBuilder();
-                    bool writeToFile = true;
-                    
-                    while (numberOfObjectsAdded < OBJECTS_PER_FILE && objectCounts.Count > 0) {
-                        int largestObjectSet = 0;
-                        short largestObjectSetID = -1;
-                        foreach (short key in objectCounts.Keys) {
-                            if (objectCounts[key] > largestObjectSet) {
-                                largestObjectSet = objectCounts[key];
-                                largestObjectSetID = key;
-                            }
-                        }
-                        
-                        Console.ForegroundColor = ConsoleColor.Yellow;
-                        Console.WriteLine(largestObjectSetID.ToString() + ": " + largestObjectSet.ToString());
+                #region Create Object Properties
 
-                        if (largestObjectSet > OBJECTS_PER_FILE) {
-                            List<ObjectInfo> objects = new List<ObjectInfo>();
-                            foreach (ObjectInfo oi in uf.Metadata.ObjectInfoList) {
-                                if (oi.ClassID == largestObjectSetID) {
-                                    objects.Add(oi);
+                StringBuilder propertiesBuilder = new StringBuilder();
+
+                propertiesBuilder.Append("Object ");
+                propertiesBuilder.Append(oi.ObjectID.ToString());
+                propertiesBuilder.Append(" {\n");
+
+                propertiesBuilder.Append("  Class: \"");
+                propertiesBuilder.Append(UnityClassIDDatabase.Classes[oi.ClassID]);
+                propertiesBuilder.Append("\";\n");
+
+                if (oi.ClassID != oi.TypeID) {
+                    propertiesBuilder.Append("  TypeID: ");
+                    propertiesBuilder.Append(oi.TypeID.ToString());
+                    propertiesBuilder.Append(";\n");
+                }
+
+                if (oi.IsDestroyed != 0) {
+                    propertiesBuilder.Append("  IsDestroyed: ");
+                    propertiesBuilder.Append(oi.IsDestroyed.ToString());
+                    propertiesBuilder.Append(";\n");
+                }
+                
+                #endregion
+
+                if (baseNode.NumberOfChildren < 1) {
+                    fileBuilder.Append(propertiesBuilder.ToString());
+                    fileBuilder.Append("  HasNoData: ");
+                    fileBuilder.Append(true.ToString());
+                    fileBuilder.Append(";\n}\n\n");
+                    continue;
+                }
+
+                propertiesBuilder.Append("  Data: {\n");
+
+                byte[] objectData = new byte[oi.ByteSize];
+                for (int i = 0; i < oi.ByteSize; i++) {
+                    objectData[i] = uf.ObjectData[i + oi.ByteStart];
+                }
+                DataReader objectDataReaderA = DataReader.FromBytes(objectData, uf.Header.Endianness == 0);
+                DataReader objectDataReaderB = DataReader.FromBytes(objectData, uf.Header.Endianness == 0);
+
+                bool hasStartedObject = false;
+
+                foreach (TypeNode memberNode in baseNode.Children) {
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine("Member " + memberNode.Name + " (" + memberNode.Type + ")");
+
+                    if (memberNode.NumberOfChildren > 0 && memberNode.Children[0].IsArray == 1) {
+                        #region Array
+
+                        if (memberNode.Children[0].NumberOfChildren != 2 ||
+                            memberNode.Children[0].Children[0].Name != "size" ||
+                            memberNode.Children[0].Children[1].Name != "data") {
+                            throw new FormatException("An array node must have two children: 'size' and 'data'.");
+                        }
+
+                        #region Create Array Properties
+
+                        StringBuilder arrayPropertiesBuilder = new StringBuilder();
+
+                        arrayPropertiesBuilder.Append("    .Array .ArrayType=");
+                        arrayPropertiesBuilder.Append(memberNode.Children[0].Children[1].Type);
+                        arrayPropertiesBuilder.Append(" ");
+                        arrayPropertiesBuilder.Append(memberNode.Type);
+                        arrayPropertiesBuilder.Append(" ");
+                        arrayPropertiesBuilder.Append(memberNode.Name);
+                        arrayPropertiesBuilder.Append(": {\n");
+
+                        #endregion
+
+                        int size = objectDataReaderA.ReadInt32();
+                        objectDataReaderB.ReadInt32();
+
+                        TypeNode dataNode = memberNode.Children[0].Children[1];
+                        bool hasStartedArrayMember = false;
+
+                        for (int i = 0; i < size; i++) {
+                            int byteSize = CalculateByteSize(dataNode, objectDataReaderA);
+                            int memberSize = (byteSize / BYTES_PER_CLASS_POINT) + (byteSize % BYTES_PER_CLASS_POINT > 0 ? 1 : 0);
+
+                            if (memberSize + membersSize > CLASS_POINTS_PER_FILE) {
+                                if (memberSize > CLASS_POINTS_PER_FILE) {
+                                    throw new FormatException("Object member is larger than the specified maximum size.");
+                                } else {
+                                    if (hasStartedArrayMember) {
+                                        fileBuilder.Append("    }\n");
+                                    }
+                                    if (hasStartedObject) {
+                                        fileBuilder.Append("  }\n}");
+                                    }
+
+                                    File.WriteAllText(baseDirectory + "/objects." + fileIndex.ToString() + ".ubml", fileBuilder.ToString());
+                                        
+                                    fileIndex++;
+                                    membersSize = 0;
+
+                                    fileBuilder = new StringBuilder();
+                                    fileBuilder.Append(propertiesBuilder.ToString());
                                 }
                             }
 
-                            for (int i = 0; i < (largestObjectSet / OBJECTS_PER_FILE) + (largestObjectSet % OBJECTS_PER_FILE > 0 ? 1 : 0); i++) {
-                                StringBuilder partialObjectBuilder = new StringBuilder();
-                                for (int ii = i * OBJECTS_PER_FILE; ii < (i * OBJECTS_PER_FILE) + OBJECTS_PER_FILE && ii < largestObjectSet; ii++) {
-                                    AppendObject(objects[ii], uf.ObjectData, uf.Header.Endianness == 0, partialObjectBuilder);
+                            if (!hasStartedObject) {
+                                fileBuilder.Append(propertiesBuilder.ToString());
+                                hasStartedObject = true;
+                            }
+
+                            if (!hasStartedArrayMember) {
+                                fileBuilder.Append(arrayPropertiesBuilder.ToString());
+                                hasStartedArrayMember = true;
+                            }
+
+                            AppendTypeNode(dataNode, objectDataReaderB, fileBuilder, "      ", true);
+                            membersSize += memberSize;
+                        }
+
+                        if (hasStartedArrayMember) {
+                            fileBuilder.Append("    }\n");
+                        }
+
+                        #endregion
+                    } else {
+                        #region Object
+                            
+                        int byteSize = CalculateByteSize(memberNode, objectDataReaderA);
+                        int memberSize = (byteSize / BYTES_PER_CLASS_POINT) + (byteSize % BYTES_PER_CLASS_POINT > 0 ? 1 : 0);
+
+                        if (memberSize + membersSize > CLASS_POINTS_PER_FILE) {
+                            if (memberSize > CLASS_POINTS_PER_FILE) {
+                                throw new FormatException("Object member is larger than the specified maximum size.");
+                            } else {
+                                if (hasStartedObject) {
+                                    fileBuilder.Append("  }\n}");
                                 }
-                                Console.ForegroundColor = ConsoleColor.DarkGreen;
-                                Console.WriteLine("Writing " + i.ToString());
-                                File.WriteAllText(baseDirectory + "/objects." + largestObjectSetID.ToString() + ".n" + i.ToString() + ".ubml", partialObjectBuilder.ToString().Replace("\r", ""));
-                            }
 
-                            writeToFile = false;
-                            numberOfObjectsAdded = OBJECTS_PER_FILE;
-                            objectCounts.Remove(largestObjectSetID);
-                            continue;
-                        }
+                                File.WriteAllText(baseDirectory + "/objects." + fileIndex.ToString() + ".ubml", fileBuilder.ToString());
 
-                        foreach (ObjectInfo oi in uf.Metadata.ObjectInfoList) {
-                            if (oi.ClassID == largestObjectSetID) {
-                                AppendObject(oi, uf.ObjectData, uf.Header.Endianness == 0, objectBuilder);
+                                fileIndex++;
+                                membersSize = 0;
+
+                                fileBuilder = new StringBuilder();
+                                fileBuilder.Append(propertiesBuilder.ToString());
                             }
                         }
 
-                        writeToFile = true;
-                        filenameSuffix += "." + largestObjectSetID.ToString();
-                        numberOfObjectsAdded += largestObjectSet;
-                        objectCounts.Remove(largestObjectSetID);
-                    }
+                        if (!hasStartedObject) {
+                            fileBuilder.Append(propertiesBuilder.ToString());
+                            hasStartedObject = true;
+                        }
 
-                    if (writeToFile) {
-                        Console.ForegroundColor = ConsoleColor.Green;
-                        Console.WriteLine("Writing");
-                        File.WriteAllText(baseDirectory + "/objects" + filenameSuffix + ".ubml", objectBuilder.ToString().Replace("\r", ""));
+                        AppendTypeNode(memberNode, objectDataReaderB, fileBuilder, "    ");
+                        membersSize += memberSize;
+
+                        #endregion
                     }
                 }
 
-                Console.ResetColor();
-            } else {
-                AppendIncludes(uf.Metadata.FileIdentifiers, mainBuilder);
-
-                foreach (ObjectInfo oi in uf.Metadata.ObjectInfoList) {
-                    AppendObject(oi, uf.ObjectData, uf.Header.Endianness == 0, mainBuilder);
-                }
-
-                File.WriteAllText(baseDirectory + "/main.ubml", mainBuilder.ToString().Replace("\r", ""));
+                fileBuilder.Append("  }\n}\n\n");
+                
+            }
+            
+            if (fileBuilder.Length > 0) {
+                File.WriteAllText(baseDirectory + "/objects." + fileIndex.ToString() + ".ubml", fileBuilder.ToString());
             }
         }
-
+        
         private static void AppendIncludes(FileIdentifier[] identifiers, StringBuilder builder) {
             foreach (FileIdentifier fi in identifiers) {
                 bool hasGUID = false;
@@ -162,51 +315,31 @@ namespace Modicite.UBML {
             }
         }
 
-        private static void AppendObject(ObjectInfo oi, byte[] objectData, bool isLittleEndian, StringBuilder builder) {
-            builder.AppendLine("Object " + oi.ObjectID.ToString() + " {");
-            builder.AppendLine("  Class: \"" + UnityClassIDDatabase.Classes[oi.ClassID] + "\";");
-
-            if (oi.TypeID != oi.ClassID) {
-                builder.AppendLine("  TypeID: " + oi.TypeID.ToString() + ";");
-            }
-
-            if (oi.IsDestroyed != 0) {
-                builder.AppendLine("  IsDestroyed: " + oi.IsDestroyed.ToString() + ";");
-            }
-
-            try {
-                TypeNode tn = UnityRTTIDatabase.GetNewestTypeForClass(oi.ClassID);
-
-                byte[] typeData = new byte[oi.ByteSize];
-                for (int i = 0; i < oi.ByteSize; i++) {
-                    typeData[i] = objectData[oi.ByteStart + i];
+        private static int CalculateByteSize(TypeNode node, DataReader objectDataReader) {
+            if (node.IsArray == 1) {
+                int size = objectDataReader.ReadInt32();
+                int ret = 4;
+                for (int i = 0; i < size; i++) {
+                    ret += CalculateByteSize(node.Children[1], objectDataReader);
                 }
-                DataReader reader = DataReader.FromBytes(typeData);
-                reader.IsLittleEndian = isLittleEndian;
-
-                StringBuilder dataBuilder = new StringBuilder();
-                dataBuilder.AppendLine("  Data: {");
-
-                AppendTypeNode(tn, reader, dataBuilder, "    ");
-
-                reader.Close();
-
-                dataBuilder.AppendLine("  }");
-                builder.AppendLine(dataBuilder.ToString());
-            } catch (Exception ex) {
-                builder.Append("    RawData:");
-                for (int i = 0; i < oi.ByteSize; i++) {
-                    builder.Append(" " + objectData[i + oi.ByteStart].ToString());
+                return ret;
+            } else {
+                if (node.ByteSize == -1) {
+                    int ret = 0;
+                    foreach (TypeNode child in node.Children) {
+                        ret += CalculateByteSize(child, objectDataReader);
+                    }
+                    return ret;
+                } else {
+                    objectDataReader.ReadBytes(node.ByteSize);
+                    return node.ByteSize;
                 }
-                builder.AppendLine(";");
             }
-
-            builder.AppendLine("}\n");
         }
-
+        
         private static void AppendTypeNode(TypeNode tn, DataReader reader, StringBuilder builder, string indentation, bool skipName = false) {
             if (tn.IsArray == 1) {
-                
+
                 TypeNode dataNode = tn.Children[1];
 
                 builder.Append(indentation + ".Array " + dataNode.Type + ":");
@@ -241,7 +374,7 @@ namespace Modicite.UBML {
 
                 if (tn.Type == "string") {
                     if (tn.NumberOfChildren < 1 || tn.Children[0].IsArray != 1 || tn.Children[0].Children[1].Type != "char") {
-                        throw new FormatException("Children of TypeNode are not in the correct format for a string field");
+                        throw new FormatException("Children of TypeNode are not in the correct format for a string field.");
                     }
 
                     int size = reader.ReadInt32();
@@ -267,7 +400,7 @@ namespace Modicite.UBML {
                 }
             }
         }
-        
+
         private static string GetStringFromTypedBytes(string type, byte[] data) {
             switch (type) {
                 case "bool":
@@ -307,7 +440,7 @@ namespace Modicite.UBML {
                 case "double":
                     return BitConverter.ToDouble(data, 0).ToString();
                 default:
-                    throw new InvalidOperationException("Unable to convert bytes to a string of the given type");
+                    throw new InvalidOperationException("Unable to convert bytes to a string of the given type.");
             }
         }
     }

@@ -13,23 +13,24 @@ namespace Modicite.Utilities {
         public bool IsLittleEndian = true;
 
 
-        private DataReader(Stream stream, long maxBuffer) {
+        private DataReader(Stream stream, long maxBuffer, bool IsLittleEndian) {
             this.stream = stream;
             this.maxBuffer = maxBuffer;
+            this.IsLittleEndian = IsLittleEndian;
         }
 
-        public static DataReader OpenFile(string filename, long maxBuffer) {
+        public static DataReader OpenFile(string filename, long maxBuffer, bool littleEndian = true) {
             FileStream stream = new FileStream(filename, FileMode.Open);
             stream.Position = 0;
             stream.Flush(); //Is this necessary?
-            return new DataReader(stream, maxBuffer);
+            return new DataReader(stream, maxBuffer, littleEndian);
         }
 
-        public static DataReader FromBytes(byte[] data) {
+        public static DataReader FromBytes(byte[] data, bool littleEndian = true) {
             MemoryStream stream = new MemoryStream(data, false);
             stream.Position = 0;
             stream.Flush(); //Is this necessary?
-            return new DataReader(stream, Int32.MaxValue);
+            return new DataReader(stream, Int32.MaxValue, littleEndian); //Is this safe?
         }
 
 
@@ -102,14 +103,14 @@ namespace Modicite.Utilities {
 
         public void Jump(int count) {
             if (stream.Position + count >= stream.Length) {
-                throw new InvalidOperationException("Cannot jump furthur than the total length of the stream");
+                throw new InvalidOperationException("Cannot jump further than the total length of the stream.");
             }
             stream.Position += count;
         }
 
         public void JumpTo(int index) {
             if (index >= stream.Length) {
-                throw new InvalidOperationException("Cannot jump furthur than the total length of the stream");
+                throw new InvalidOperationException("Cannot jump further than the total length of the stream.");
             }
             stream.Position = index;
         }

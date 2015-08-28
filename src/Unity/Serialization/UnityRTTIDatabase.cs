@@ -15,7 +15,7 @@ namespace Modicite.Unity.Serialization {
 
         public static void Load(string filename) {
             if (UnityClassIDDatabase.Classes == null || UnityClassIDDatabase.Classes.Count < 1) {
-                throw new InvalidOperationException("The class ID database must be loaded before the RTTI database is loaded");
+                throw new InvalidOperationException("The class ID database must be loaded before the RTTI database is loaded.");
             }
 
             DataReader reader = DataReader.OpenFile(filename, 1000000);
@@ -51,13 +51,13 @@ namespace Modicite.Unity.Serialization {
                     return Types[dbm.NodeIndex];
                 }
             }
-            throw new ArgumentException("No RTTI exists for the given class ID and Unity version");
+            throw new ArgumentException("No RTTI exists for the given class ID and Unity version.");
         }
 
         public static TypeNode GetTypeForClassAndVersion(int classID, string versionName) {
             int index = Array.IndexOf(Versions, versionName);
             if (index == -1) {
-                throw new ArgumentException("The specified Unity version does not exist in this database");
+                throw new ArgumentException("The specified Unity version does not exist in this database.");
             }
             return GetTypeForClassAndVersion(classID, index);
         }
@@ -68,13 +68,13 @@ namespace Modicite.Unity.Serialization {
                     return GetTypeForClassAndVersion(key, versionIndex);
                 }  
             }
-            throw new ArgumentException("The specified class does not exist");
+            throw new ArgumentException("The specified class does not exist.");
         }
 
         public static TypeNode GetTypeForClassAndVersion(string className, string versionName) {
             int index = Array.IndexOf(Versions, versionName);
             if (index == -1) {
-                throw new ArgumentException("The specified Unity version does not exist in this database");
+                throw new ArgumentException("The specified Unity version does not exist in this database.");
             }
             return GetTypeForClassAndVersion(className, index);
         }
@@ -88,7 +88,7 @@ namespace Modicite.Unity.Serialization {
                 }
             }
             if (typeNodes.Count < 1) {
-                throw new ArgumentException("No RTTI instances exist for the given class ID");
+                throw new ArgumentException("No RTTI instances exist for the given class ID.");
             }
             return typeNodes.ToArray();
         }
@@ -99,7 +99,7 @@ namespace Modicite.Unity.Serialization {
                     return GetTypesForClass(key);
                 }
             }
-            throw new ArgumentException("The specified class does not exist");
+            throw new ArgumentException("The specified class does not exist.");
         }
 
 
@@ -111,7 +111,7 @@ namespace Modicite.Unity.Serialization {
                 }
             }
             if (versions.Count < 1) {
-                throw new ArgumentException("No RTTI instances exist for the given class ID");
+                throw new ArgumentException("No RTTI instances exist for the given class ID.");
             }
             string newest = GetNewestVersion(versions.ToArray());
             foreach (RTTIDatabaseMapping dbm in Mappings) {
@@ -119,7 +119,7 @@ namespace Modicite.Unity.Serialization {
                     return Types[dbm.NodeIndex];
                 }
             }
-            throw new ArgumentException("No RTTI instances exist for the given class ID and Unity version");
+            throw new ArgumentException("No RTTI instances exist for the given class ID and Unity version.");
         }
 
         public static TypeNode GetNewestTypeForClass(string className) {
@@ -128,7 +128,7 @@ namespace Modicite.Unity.Serialization {
                     return GetNewestTypeForClass(key);
                 }
             }
-            throw new ArgumentException("The specified class does not exist");
+            throw new ArgumentException("The specified class does not exist.");
         }
 
         private static string GetNewestVersion(string[] versions) {
