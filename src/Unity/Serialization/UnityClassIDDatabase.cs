@@ -9,7 +9,7 @@ namespace Modicite.Unity.Serialization {
         public static Dictionary<int, string> Classes = new Dictionary<int, string>();
 
         public static void Load(string filename) {
-            string contents = File.ReadAllText(filename);
+            string contents = File.ReadAllText(filename).Replace("\r", "");
             contents = contents.Replace("\t", " ");
             while (contents.Contains("  ")) {
                 contents = contents.Replace("  ", " ");

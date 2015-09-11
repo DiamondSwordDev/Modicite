@@ -26,12 +26,15 @@
     <PlatformTarget>AnyCPU</PlatformTarget>
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
-    <OutputPath>bin\Release\</OutputPath>
+    <OutputPath>..\bin\Release\</OutputPath>
     <DefineConstants>TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="SimpleJson">
+      <HintPath>..\lib\SimpleJson.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Xml.Linq" />
@@ -56,6 +59,7 @@
     <Compile Include="Unity\Serialization\UnityFileHeader.cs" />
     <Compile Include="Unity\Serialization\UnityFileMetadata.cs" />
     <Compile Include="Utilities\DataReader.cs" />
+    <Compile Include="Utilities\VersionComparison.cs" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="classes.txt">

@@ -5,9 +5,9 @@ using System.Collections.Generic;
 using Modicite.Utilities;
 using Modicite.Unity.Serialization;
 
-namespace Modicite.UBML {
+namespace Modicite.Json {
 
-    static class UBMLFileBuilder {
+    static class UnityFileToJson {
 
         //Approximation. Files can be anywhere from 0x to 1.5x this value;
         private static readonly int CLASS_POINTS_PER_FILE = 50;

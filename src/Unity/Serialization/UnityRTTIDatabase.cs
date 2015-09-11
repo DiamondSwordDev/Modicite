@@ -113,7 +113,7 @@ namespace Modicite.Unity.Serialization {
             if (versions.Count < 1) {
                 throw new ArgumentException("No RTTI instances exist for the given class ID.");
             }
-            string newest = GetNewestVersion(versions.ToArray());
+            string newest = VersionComparison.GetNewest(versions.ToArray());
             foreach (RTTIDatabaseMapping dbm in Mappings) {
                 if (dbm.ClassID == classID && Versions[dbm.VersionIndex] == newest) {
                     return Types[dbm.NodeIndex];
@@ -131,31 +131,41 @@ namespace Modicite.Unity.Serialization {
             throw new ArgumentException("The specified class does not exist.");
         }
 
-        private static string GetNewestVersion(string[] versions) {
-            string newest = "0.0.0a0";
-            foreach (string version in versions) {
-                for (int i = 0; i < Math.Max(version.Length, newest.Length); i++) {
-                    if (version.Length <= i && newest.Length > i) {
-                        break;
-                    } else if (newest.Length <= i && version.Length > i) {
-                        newest = version;
-                        break;
-                    }
 
-                    if (Char.IsDigit(version[i])) {
-                        if (Convert.ToInt32(version[i]) > Convert.ToInt32(newest[i])) {
-                            newest = version;
-                            break;
-                        }
-                    } else if (Char.IsLetter(version[i])) {
-                        if (Encoding.UTF8.GetBytes(new char[] { version[i] })[0] > Encoding.UTF8.GetBytes(new char[] { newest[i] })[0]) {
-                            newest = version;
-                            break;
-                        }
-                    }
+        public static TypeNode GetTypeForClassVersion(int classID, string version) {
+            List<string> versions = new List<string>();
+            foreach (RTTIDatabaseMapping dbm in Mappings) {
+                if (dbm.ClassID == classID) {
+                    versions.Add(Versions[dbm.VersionIndex]);
                 }
             }
-            return newest;
+            if (versions.Count < 1) {
+                throw new ArgumentException("No RTTI instances exist for the given class ID.");
+            }
+
+            List<string> possibleVersions = new List<string>();
+            foreach (string v in versions) {
+                if (v == version || VersionComparison.GetNewest(new string[] { v, version }) != v) {
+                    possibleVersions.Add(v);
+                }
+            }
+
+            string newest = VersionComparison.GetNewest(possibleVersions.ToArray());
+            foreach (RTTIDatabaseMapping dbm in Mappings) {
+                if (dbm.ClassID == classID && Versions[dbm.VersionIndex] == newest) {
+                    return Types[dbm.NodeIndex];
+                }
+            }
+            throw new ArgumentException("No RTTI instances exist for the given class ID and Unity version.");
+        }
+
+        public static TypeNode GetTypeForClassVersion(string className, string version) {
+            foreach (int key in UnityClassIDDatabase.Classes.Keys) {
+                if (UnityClassIDDatabase.Classes[key] == className) {
+                    return GetTypeForClassVersion(key, version);
+                }
+            }
+            throw new ArgumentException("The specified class does not exist.");
         }
     }
 }
