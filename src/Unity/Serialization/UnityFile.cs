@@ -49,86 +49,8 @@ namespace Modicite.Unity.Serialization {
             return uf;
         }
 
-
-        public void ExportToJSONDirectory(string directory) {
-            if (UnityClassIDDatabase.Classes == null || UnityClassIDDatabase.Classes.Count < 1) {
-                throw new InvalidOperationException("The class ID database must be loaded before the file can be exported.");
-            }
-
-            if (UnityRTTIDatabase.Version == -1) {
-                throw new InvalidOperationException("The RTTI database must be loaded before the file can be exported.");
-            }
-
-            if (Metadata.ClassHierarchyDescriptor.NumberOfBaseClasses > 0) {
-                throw new InvalidDataException("Runtime Type Information is not supported.");
-            }
-
-            if (ObjectData.Length < 1) {
-                throw new InvalidOperationException("The object data must be loaded before the file can be exported.");
-            }
-
-            string baseDirectory = directory.Replace("\\", "/").TrimEnd('/');
-
-            if (!Directory.Exists(baseDirectory)) {
-                Directory.CreateDirectory(baseDirectory);
-            }
-            
-            ExportHeaderToFile(baseDirectory);
-            
-
-            Dictionary<string, object> objectFileObject = new Dictionary<string, object>();
-
-            int fileIndex = 0;
-
-            const int maxFileSize = 512;
-            int currentFileSize = 0;
-                
-            DataReader objectDataReader = DataReader.FromBytes(ObjectData);
-
-            foreach (ObjectInfo oi in Metadata.ObjectInfoList) {
-                Console.CursorLeft = 0;
-                Console.Write("Object " + oi.ObjectID.ToString() + "/" + Metadata.ObjectInfoList.Length.ToString());
-
-                if (currentFileSize + oi.ByteSize > maxFileSize) {
-                    File.WriteAllText(baseDirectory + "/objects." + fileIndex.ToString() + ".json", GetFormattedJson(SimpleJson.SimpleJson.SerializeObject(objectFileObject)));
-                    objectFileObject.Clear();
-                    currentFileSize = 0;
-                    fileIndex++;
-                }
-
-                Dictionary<string, object> objectObject = new Dictionary<string, object>(); //Lol, the redundancy...
-                if (UnityClassIDDatabase.Classes.ContainsKey(oi.ClassID)) {
-                    objectObject["class"] = UnityClassIDDatabase.Classes[oi.ClassID];
-                } else {
-                    objectObject["classID"] = oi.ClassID;
-                }
-                if (oi.TypeID != oi.ClassID) {
-                    objectObject["typeID"] = oi.TypeID;
-                }
-                if (oi.IsDestroyed != 0) {
-                    objectObject["isDestroyed"] = oi.IsDestroyed;
-                }
-                if (oi.ByteSize > 0) {
-                    try {
-                        objectDataReader.JumpTo(oi.ByteStart);
-                        objectObject["data"] = ExportTypeNodesAsJsonObject(UnityRTTIDatabase.GetTypeForClassVersion(oi.ClassID, Metadata.ClassHierarchyDescriptor.Signature).Children, objectDataReader, Header.Endianness == 0);
-                    } catch (Exception ex) {
-                        objectDataReader.JumpTo(oi.ByteStart);
-                        objectObject["rawDataFailure"] = ex.GetType().Name + ": " + ex.Message;
-                        objectObject["rawData"] = objectDataReader.ReadBytes(oi.ByteSize);
-                    }
-                } else {
-                    objectObject["data"] = null;
-                }
-
-                objectFileObject[oi.ObjectID.ToString()] = objectObject;
-                currentFileSize += oi.ByteSize;
-            }
-
-            Console.WriteLine("");
-        }
-
-        private void ExportHeaderToFile(string directory) {
+        
+        public void ExportHeaderToFile(string fileName) {
             Dictionary<string, object> mainObject = new Dictionary<string, object>();
 
             Dictionary<string, object> headerObject = new Dictionary<string, object>();
@@ -171,35 +93,70 @@ namespace Modicite.Unity.Serialization {
             }
             mainObject["includes"] = includesArray;
 
-            File.WriteAllText(directory + "/header.json", GetFormattedJson(SimpleJson.SimpleJson.SerializeObject(mainObject)));
+            File.WriteAllText(fileName, GetFormattedJson(SimpleJson.SimpleJson.SerializeObject(mainObject)));
         }
         
+        public void ExportObjectToFile(ObjectInfo objectInfo, string fileName, string failureFileName) {
+            Dictionary<string, object> fileObject = new Dictionary<string, object>();
+            fileObject["objectID"] = objectInfo.ObjectID;
+            if (objectInfo.ClassID == 114) {
+                fileObject["classID"] = objectInfo.ClassID;
+            } else {
+                fileObject["class"] = UnityClassIDDatabase.Classes[objectInfo.ClassID];
+            }
+            fileObject["typeID"] = objectInfo.TypeID;
+            if (objectInfo.IsDestroyed != 0) {
+                fileObject["isDestroyed"] = objectInfo.IsDestroyed;
+            }
+
+            DataReader objectDataReader = DataReader.FromBytes(ObjectData, Header.Endianness == 0);
+
+            try {
+                objectDataReader.JumpTo(objectInfo.ByteStart);
+                fileObject["data"] = ExportTypeNodesAsJsonObject(UnityRTTIDatabase.GetTypeForClassVersion(objectInfo.ClassID, Metadata.ClassHierarchyDescriptor.Signature).Children, objectDataReader, Header.Endianness == 0);
+                File.WriteAllText(fileName, GetFormattedJson(SimpleJson.SimpleJson.SerializeObject(fileObject)));
+            } catch (Exception ex) {
+                objectDataReader.JumpTo(objectInfo.ByteStart);
+                fileObject["rawDataFailure"] = ex.GetType().Name + ": " + ex.Message;
+                fileObject["rawData"] = objectDataReader.ReadBytes(objectInfo.ByteSize);
+                File.WriteAllText(failureFileName, GetFormattedJson(SimpleJson.SimpleJson.SerializeObject(fileObject)));
+            }
+
+            objectDataReader.Close();
+        }
+
         private Dictionary<string, object> ExportTypeNodesAsJsonObject(TypeNode[] nodes, DataReader objectDataReader, bool isLittleEndian) {
             Dictionary<string, object> nodesObject = new Dictionary<string, object>();
             
             foreach (TypeNode node in nodes) {
                 if (node.NumberOfChildren > 0 && node.Children[0].IsArray == 1) {
-                    Dictionary<string, object> arrayData = ExportTypeNodesAsJsonObject(node.Children[0].Children, objectDataReader, isLittleEndian);
-                    List<object> arrayObjects = new List<object>();
-                    int size = (int)arrayData["int size"];
-                    for (int i = 0; i < size; i++) {
-                        arrayObjects.Add(ExportTypeNodesAsJsonObject(node.Children[0].Children[1].Children, objectDataReader, isLittleEndian));
+                    if (node.Type.ToLower() == "string") {
+                        int size = objectDataReader.ReadInt32();
+                        string nodeValue = Encoding.UTF8.GetString(objectDataReader.ReadBytes(size));
+                        nodesObject[node.Type + " " + node.Name] = nodeValue;
+                    } else {
+                        List<object> arrayObjects = new List<object>();
+                        int size = objectDataReader.ReadInt32();
+                        for (int i = 0; i < size; i++) {
+                            arrayObjects.Add(ExportTypeNodesAsJsonObject(node.Children[0].Children[1].Children, objectDataReader, isLittleEndian));
+                        }
+                        string nodeId = ".ArrayType=" + node.Children[0].Children[1].Type + " " + node.Type + " " + node.Name;
+                        nodesObject[nodeId] = arrayObjects;
                     }
-                    string nodeId = "." + node.MetaFlag.ToString() + " .ArrayType=" + node.Children[0].Children[1].Type + " " + node.Type + " " + node.Name;
-                    nodesObject[nodeId] = arrayObjects;
+                    
                 } else {
                     if (node.NumberOfChildren < 1) {
                         byte[] data = objectDataReader.ReadBytes(node.ByteSize);
                         if (BitConverter.IsLittleEndian != isLittleEndian) {
                             Array.Reverse(data);
                         }
-                        string nodeId = "." + node.MetaFlag.ToString() + " " + node.Type + " " + node.Name;
+                        string nodeId = node.Type + " " + node.Name;
                         nodesObject[nodeId] = GetObjectFromTypedBytes(node.Type, data);
                     } else {
                         if (node.NumberOfChildren < 1) {
                             throw new FormatException("A non-primitive object must have child nodes.");
                         }
-                        string nodeId = "." + node.MetaFlag.ToString() + " " + node.Type + " " + node.Name;
+                        string nodeId = node.Type + " " + node.Name;
                         nodesObject[nodeId] = ExportTypeNodesAsJsonObject(node.Children, objectDataReader, isLittleEndian);
                     }
                 }

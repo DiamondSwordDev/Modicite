@@ -44,8 +44,8 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="UBML\UBMLFileBuilder.cs" />
-    <Compile Include="Program.cs" />
+    <Compile Include="CLI\CommandLineArguments.cs" />
+    <Compile Include="CLI\ModiciteMain.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Unity\Serialization\FileIdentifier.cs" />
     <Compile Include="Unity\Serialization\ObjectInfo.cs" />
@@ -66,9 +66,7 @@
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
-  <ItemGroup>
-    <Folder Include="UBML\Objects\" />
-  </ItemGroup>
+  <ItemGroup />
   <ItemGroup>
     <None Include="types.dat">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
