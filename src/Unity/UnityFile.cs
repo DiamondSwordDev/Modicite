@@ -4,7 +4,9 @@ using System.Text;
 using Modicite.Utilities;
 using System.Collections.Generic;
 
-namespace Modicite.Unity.Serialization {
+using Modicite.Unity.RTTI;
+
+namespace Modicite.Unity {
 
     class UnityFile {
 
@@ -102,7 +104,7 @@ namespace Modicite.Unity.Serialization {
             if (objectInfo.ClassID == 114) {
                 fileObject["classID"] = objectInfo.ClassID;
             } else {
-                fileObject["class"] = UnityClassIDDatabase.Classes[objectInfo.ClassID];
+                fileObject["class"] = ClassIDDatabase.Classes[objectInfo.ClassID];
             }
             fileObject["typeID"] = objectInfo.TypeID;
             if (objectInfo.IsDestroyed != 0) {
@@ -113,7 +115,7 @@ namespace Modicite.Unity.Serialization {
 
             try {
                 objectDataReader.JumpTo(objectInfo.ByteStart);
-                fileObject["data"] = ExportTypeNodesAsJsonObject(UnityRTTIDatabase.GetTypeForClassVersion(objectInfo.ClassID, Metadata.ClassHierarchyDescriptor.Signature).Children, objectDataReader, Header.Endianness == 0);
+                fileObject["data"] = ExportTypeNodesAsJsonObject(RTTIDatabase.GetTypeForClassVersion(objectInfo.ClassID, Metadata.ClassHierarchyDescriptor.Signature).Children, objectDataReader, Header.Endianness == 0);
                 File.WriteAllText(fileName, GetFormattedJson(SimpleJson.SimpleJson.SerializeObject(fileObject)));
             } catch (Exception ex) {
                 objectDataReader.JumpTo(objectInfo.ByteStart);
@@ -222,7 +224,7 @@ namespace Modicite.Unity.Serialization {
                     } else if (c == '\\') {
                         if (input[i+1] == 'u') {
                             int end = i + 6;
-                            for (i = i; i < end; i++) {
+                            for (; i < end; i++) {
                                 formattedString += input[i];
                             }
                         } else {

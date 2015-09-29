@@ -1,6 +1,6 @@
 using Modicite.Utilities;
 
-namespace Modicite.Unity.Serialization {
+namespace Modicite.Unity {
 
     class UnityFileMetadata {
 

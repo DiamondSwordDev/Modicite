@@ -3,9 +3,9 @@ using System.Text;
 using System.Collections.Generic;
 using Modicite.Utilities;
 
-namespace Modicite.Unity.Serialization {
+namespace Modicite.Unity.RTTI {
 
-    static class UnityRTTIDatabase {
+    static class RTTIDatabase {
 
         public static int Version = -1;
         private static TypeNode[] Types;
@@ -14,7 +14,7 @@ namespace Modicite.Unity.Serialization {
 
 
         public static void Load(string filename) {
-            if (UnityClassIDDatabase.Classes == null || UnityClassIDDatabase.Classes.Count < 1) {
+            if (ClassIDDatabase.Classes == null || ClassIDDatabase.Classes.Count < 1) {
                 throw new InvalidOperationException("The class ID database must be loaded before the RTTI database is loaded.");
             }
 
@@ -63,8 +63,8 @@ namespace Modicite.Unity.Serialization {
         }
 
         public static TypeNode GetTypeForClassAndVersion(string className, int versionIndex) {
-            foreach (int key in UnityClassIDDatabase.Classes.Keys) {
-                if (UnityClassIDDatabase.Classes[key] == className) {
+            foreach (int key in ClassIDDatabase.Classes.Keys) {
+                if (ClassIDDatabase.Classes[key] == className) {
                     return GetTypeForClassAndVersion(key, versionIndex);
                 }  
             }
@@ -94,8 +94,8 @@ namespace Modicite.Unity.Serialization {
         }
 
         public static TypeNode[] GetTypesForClass(string className) {
-            foreach (int key in UnityClassIDDatabase.Classes.Keys) {
-                if (UnityClassIDDatabase.Classes[key] == className) {
+            foreach (int key in ClassIDDatabase.Classes.Keys) {
+                if (ClassIDDatabase.Classes[key] == className) {
                     return GetTypesForClass(key);
                 }
             }
@@ -123,8 +123,8 @@ namespace Modicite.Unity.Serialization {
         }
 
         public static TypeNode GetNewestTypeForClass(string className) {
-            foreach (int key in UnityClassIDDatabase.Classes.Keys) {
-                if (UnityClassIDDatabase.Classes[key] == className) {
+            foreach (int key in ClassIDDatabase.Classes.Keys) {
+                if (ClassIDDatabase.Classes[key] == className) {
                     return GetNewestTypeForClass(key);
                 }
             }
@@ -160,8 +160,8 @@ namespace Modicite.Unity.Serialization {
         }
 
         public static TypeNode GetTypeForClassVersion(string className, string version) {
-            foreach (int key in UnityClassIDDatabase.Classes.Keys) {
-                if (UnityClassIDDatabase.Classes[key] == className) {
+            foreach (int key in ClassIDDatabase.Classes.Keys) {
+                if (ClassIDDatabase.Classes[key] == className) {
                     return GetTypeForClassVersion(key, version);
                 }
             }

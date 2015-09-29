@@ -1,6 +1,7 @@
 using Modicite.Utilities;
+using Modicite.Unity.RTTI;
 
-namespace Modicite.Unity.Serialization {
+namespace Modicite.Unity {
 
     class RTTIBaseClassDescriptor {
 

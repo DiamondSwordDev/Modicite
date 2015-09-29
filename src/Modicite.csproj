@@ -44,20 +44,21 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="CLI\CommandLineArguments.cs" />
-    <Compile Include="CLI\ModiciteMain.cs" />
+    <Compile Include="Core\CommandLineArguments.cs" />
+    <Compile Include="Core\ModiciteMain.cs" />
+    <Compile Include="Core\TargetFile.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Unity\Serialization\FileIdentifier.cs" />
-    <Compile Include="Unity\Serialization\ObjectInfo.cs" />
-    <Compile Include="Unity\Serialization\RTTIBaseClassDescriptor.cs" />
-    <Compile Include="Unity\Serialization\RTTIClassHierarchyDescriptor.cs" />
-    <Compile Include="Unity\Serialization\RTTIDatabaseMapping.cs" />
-    <Compile Include="Unity\Serialization\UnityRTTIDatabase.cs" />
-    <Compile Include="Unity\Serialization\TypeNode.cs" />
-    <Compile Include="Unity\Serialization\UnityClassIDDatabase.cs" />
-    <Compile Include="Unity\Serialization\UnityFile.cs" />
-    <Compile Include="Unity\Serialization\UnityFileHeader.cs" />
-    <Compile Include="Unity\Serialization\UnityFileMetadata.cs" />
+    <Compile Include="Unity\FileIdentifier.cs" />
+    <Compile Include="Unity\ObjectInfo.cs" />
+    <Compile Include="Unity\RTTIBaseClassDescriptor.cs" />
+    <Compile Include="Unity\RTTIClassHierarchyDescriptor.cs" />
+    <Compile Include="Unity\RTTI\RTTIDatabaseMapping.cs" />
+    <Compile Include="Unity\RTTI\RTTIDatabase.cs" />
+    <Compile Include="Unity\RTTI\TypeNode.cs" />
+    <Compile Include="Unity\ClassIDDatabase.cs" />
+    <Compile Include="Unity\UnityFile.cs" />
+    <Compile Include="Unity\UnityFileHeader.cs" />
+    <Compile Include="Unity\UnityFileMetadata.cs" />
     <Compile Include="Utilities\DataReader.cs" />
     <Compile Include="Utilities\VersionComparison.cs" />
   </ItemGroup>

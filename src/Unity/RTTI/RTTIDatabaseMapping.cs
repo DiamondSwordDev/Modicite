@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace Modicite.Unity.Serialization {
+namespace Modicite.Unity.RTTI {
 
     class RTTIDatabaseMapping {
 

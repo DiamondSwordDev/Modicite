@@ -2,9 +2,9 @@ using System;
 using System.IO;
 using System.Collections.Generic;
 
-namespace Modicite.Unity.Serialization {
+namespace Modicite.Unity {
 
-    static class UnityClassIDDatabase {
+    static class ClassIDDatabase {
 
         public static Dictionary<int, string> Classes = new Dictionary<int, string>();
 
