@@ -1,5 +1,8 @@
 using System;
 using System.IO;
+using System.Collections.Generic;
+using Modicite.Unity;
+using Modicite.Unity.RTTI;
 
 namespace Modicite.Core {
 
@@ -10,7 +13,7 @@ namespace Modicite.Core {
             Console.WriteLine("Modicite v1.0.0\nby Greenlock and Nathan2055\n");
             Console.ResetColor();
 
-            CommandLineArguments arguments = CommandLineArguments.Parse(args);
+            CommandLineArguments arguments = CommandLineArguments.Parse(new string[] { "-d", "./game", "./output" });
             if (arguments == null) {
                 return;
             }
@@ -22,12 +25,14 @@ namespace Modicite.Core {
             } else {
                 Help(arguments);
             }
+
+            Console.ReadKey();
         }
 
 
         static void Help(CommandLineArguments arguments) {
             Console.ForegroundColor = ConsoleColor.DarkGreen;
-            Console.WriteLine("==== Available Arguments: ====\n");
+            Console.WriteLine("==== Available Arguments: ====");
 
             Console.ResetColor();
 
@@ -36,7 +41,8 @@ namespace Modicite.Core {
             Console.WriteLine("--decompile (-d)  | Decompiles the Magicite resources and assemblies");
             Console.WriteLine("                  |  Usage:  modicite --decompile <gameDir> <outputDir>");
             Console.WriteLine("--version (-V)    | Specifies the version of Magicite which is to be decompiled");
-            Console.WriteLine("                  |  Usage:  modicite --decompile [--version=<ver>] <gameDir> <outputDir>");
+            Console.WriteLine("                  |  Usage:  modicite --decompile [--version=<ver>] <gameDir>");
+            Console.WriteLine("                  |          <outputDir>");
         }
 
         static void Decompile(CommandLineArguments arguments) {
@@ -55,8 +61,10 @@ namespace Modicite.Core {
                 Console.ResetColor();
                 return;
             }
+            
+            #region Get Target Version
 
-            string targetVersion = "default";
+            string targetVersion = ModiciteInfo.NewestSupportedMagiciteVersion;
 
             if (arguments.OptionalArguments.Contains(OptionalArgument.Version)) {
                 if (arguments.OptionalArgumentParameters.ContainsKey(OptionalArgument.Version)) {
@@ -95,6 +103,126 @@ namespace Modicite.Core {
                 Console.ResetColor();
                 return;
             }
+
+            Console.WriteLine("Decompiling with target version '" + targetVersion + "'.");
+
+            #endregion
+
+            #region Create Output Directory
+
+            if (Directory.Exists(arguments.PlainArguments[1])
+                && Directory.GetFiles(arguments.PlainArguments[1]).Length > 0
+                && Directory.GetDirectories(arguments.PlainArguments[1]).Length > 0) {
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine("The output directory is not empty!");
+                Console.ResetColor();
+                return;
+            }
+
+            if (!Directory.Exists(arguments.PlainArguments[1])) {
+                try {
+                    Directory.CreateDirectory(arguments.PlainArguments[1]);
+                } catch (Exception ex) {
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine("The output directory could not be created due to " + ex.GetType().Name + ": " + ex.Message);
+                    Console.ResetColor();
+                    return;
+                }
+            }
+
+            string outputDir = arguments.PlainArguments[1].TrimEnd(new char[] { '/', '\\' });
+
+            #endregion
+
+            ClassIDDatabase.Load("./classes.txt");
+
+            RTTIDatabase.Load("./types.dat");
+
+            #region Unity Binaries
+
+            Directory.CreateDirectory(outputDir + "/unity-data");
+
+            foreach (TargetFileEntry dataFileEntry in targetFile.unityDataFiles) {
+                string entryPath = arguments.PlainArguments[0].TrimEnd(new char[] { '/', '\\' }) + dataFileEntry.path;
+
+                if (!File.Exists(entryPath)) {
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine("Missing Unity data file '" + dataFileEntry.name + "'!");
+                    Console.ResetColor();
+                    continue;
+                }
+
+                Console.Write("Loading Unity data file '" + dataFileEntry.name + "'... ");
+                UnityFile uf;
+                try {
+                    uf = UnityFile.Load(entryPath, true);
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.WriteLine("Done.");
+                    Console.ResetColor();
+                } catch (Exception ex) {
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine("Failed due to " + ex.GetType().Name + ": " + ex.Message);
+                    Console.ResetColor();
+                    continue;
+                }
+
+                Directory.CreateDirectory(outputDir + "./unity-data/" + dataFileEntry.name);
+
+                Console.Write("Exporting file header from '" + dataFileEntry.name + "'... ");
+                try {
+                    uf.ExportHeaderToFile(outputDir + "./unity-data/" + dataFileEntry.name + "/header.json");
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.WriteLine("Done.");
+                    Console.ResetColor();
+                } catch (Exception ex) {
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine("Failed due to " + ex.GetType().Name + ": " + ex.Message);
+                    Console.ResetColor();
+                    continue;
+                }
+
+                List<string> exportFailures = new List<string>();
+
+                int count = 1;
+                foreach (ObjectInfo oi in uf.Metadata.ObjectInfoList) {
+                    Console.CursorLeft = 0;
+                    Console.Write("Exporting object data from '" + dataFileEntry.name + "'... " + count.ToString() + "/" + uf.Metadata.NumberOfObjectInfoListMembers.ToString());
+                    
+                    string objectClassName = oi.ClassID == 114 ? "114" : ClassIDDatabase.Classes[oi.ClassID];
+                    
+                    if (!Directory.Exists(outputDir + "./unity-data/" + dataFileEntry.name + "/" + objectClassName)) {
+                        Directory.CreateDirectory(outputDir + "./unity-data/" + dataFileEntry.name + "/" + objectClassName);
+                    }
+
+                    if (oi.ClassID != 198) {
+                        try {
+                            uf.ExportObjectToFile(oi, outputDir + "./unity-data/" + dataFileEntry.name + "/" + objectClassName + "/" + oi.ObjectID.ToString() + ".json", outputDir + "./unity-data/" + dataFileEntry.name + "/" + objectClassName + "/raw-" + oi.ObjectID.ToString() + ".json");
+                        } catch (Exception ex) {
+                            exportFailures.Add("Object " + oi.ObjectID.ToString() + " failed to export due to " + ex.GetType().Name + ": " + ex.Message);
+                        }
+                    } else {
+                        try {
+                            uf.ExportRawObjectToFile(oi, outputDir + "./unity-data/" + dataFileEntry.name + "/" + objectClassName + "/raw-" + oi.ObjectID.ToString() + ".json");
+                        } catch (Exception ex) {
+                            exportFailures.Add("Object " + oi.ObjectID.ToString() + " failed to export due to " + ex.GetType().Name + ": " + ex.Message);
+                        }
+                    }
+                    
+                    count++;
+                }
+                Console.Write(" - ");
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine("Done.");
+                Console.ResetColor();
+
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                foreach (string exportFailure in exportFailures) {
+                    Console.WriteLine(exportFailure);
+                }
+                Console.ResetColor();
+            }
+
+            #endregion
         }
     }
 }

@@ -20,8 +20,12 @@ namespace Modicite.Core {
             modeAliases["help"] = ModeArgument.Help;
             modeAliases["h"] = ModeArgument.Help;
             modeAliases["?"] = ModeArgument.Help;
+            modeAliases["decompile"] = ModeArgument.Decompile;
+            modeAliases["d"] = ModeArgument.Decompile;
 
             Dictionary<string, OptionalArgument> optionalAliases = new Dictionary<string, OptionalArgument>();
+            optionalAliases["version"] = OptionalArgument.Version;
+            optionalAliases["V"] = OptionalArgument.Version;
 
             CommandLineArguments arguments = new CommandLineArguments();
 
@@ -73,6 +77,8 @@ namespace Modicite.Core {
                         Console.ResetColor();
                         return null;
                     }
+                } else {
+                    arguments.PlainArguments.Add(arg);
                 }
             }
 

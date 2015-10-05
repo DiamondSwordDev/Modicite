@@ -37,6 +37,6 @@ using System.Runtime.InteropServices;
 
 namespace Modicite.Core {
     internal static class ModiciteInfo {
-        public static string NewestSupportedMagiciteVersion = "";
+        public static string NewestSupportedMagiciteVersion = "1.6";
     }
 }

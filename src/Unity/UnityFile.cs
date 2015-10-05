@@ -112,17 +112,46 @@ namespace Modicite.Unity {
             }
 
             DataReader objectDataReader = DataReader.FromBytes(ObjectData, Header.Endianness == 0);
-
+            
             try {
                 objectDataReader.JumpTo(objectInfo.ByteStart);
-                fileObject["data"] = ExportTypeNodesAsJsonObject(RTTIDatabase.GetTypeForClassVersion(objectInfo.ClassID, Metadata.ClassHierarchyDescriptor.Signature).Children, objectDataReader, Header.Endianness == 0);
-                File.WriteAllText(fileName, GetFormattedJson(SimpleJson.SimpleJson.SerializeObject(fileObject)));
+                if (objectInfo.ClassID == 114) {
+                    fileObject["rawDataFailure"] = "No failure; class type '114' has no structure definition.";
+                    fileObject["rawData"] = objectDataReader.ReadBytes(objectInfo.ByteSize);
+                    File.WriteAllText(failureFileName, GetFormattedJson(SimpleJson.SimpleJson.SerializeObject(fileObject)));
+                } else {
+                    fileObject["data"] = ExportTypeNodesAsJsonObject(RTTIDatabase.GetTypeForClassVersion(objectInfo.ClassID, Metadata.ClassHierarchyDescriptor.Signature).Children, objectDataReader, Header.Endianness == 0);
+                    File.WriteAllText(fileName, GetFormattedJson(SimpleJson.SimpleJson.SerializeObject(fileObject)));
+                }
             } catch (Exception ex) {
                 objectDataReader.JumpTo(objectInfo.ByteStart);
                 fileObject["rawDataFailure"] = ex.GetType().Name + ": " + ex.Message;
                 fileObject["rawData"] = objectDataReader.ReadBytes(objectInfo.ByteSize);
                 File.WriteAllText(failureFileName, GetFormattedJson(SimpleJson.SimpleJson.SerializeObject(fileObject)));
             }
+
+            objectDataReader.Close();
+        }
+
+        public void ExportRawObjectToFile(ObjectInfo objectInfo, string fileName) {
+            Dictionary<string, object> fileObject = new Dictionary<string, object>();
+            fileObject["objectID"] = objectInfo.ObjectID;
+            if (objectInfo.ClassID == 114) {
+                fileObject["classID"] = objectInfo.ClassID;
+            } else {
+                fileObject["class"] = ClassIDDatabase.Classes[objectInfo.ClassID];
+            }
+            fileObject["typeID"] = objectInfo.TypeID;
+            if (objectInfo.IsDestroyed != 0) {
+                fileObject["isDestroyed"] = objectInfo.IsDestroyed;
+            }
+
+            DataReader objectDataReader = DataReader.FromBytes(ObjectData, Header.Endianness == 0);
+            
+            objectDataReader.JumpTo(objectInfo.ByteStart);
+            fileObject["rawDataFailure"] = "No failure; object was intended to exported as raw data.";
+            fileObject["rawData"] = objectDataReader.ReadBytes(objectInfo.ByteSize);
+            File.WriteAllText(fileName, GetFormattedJson(SimpleJson.SimpleJson.SerializeObject(fileObject)));
 
             objectDataReader.Close();
         }
