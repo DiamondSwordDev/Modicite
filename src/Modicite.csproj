@@ -49,6 +49,7 @@
     <Compile Include="Core\TargetFile.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Unity\FileIdentifier.cs" />
+    <Compile Include="Unity\ObjectData.cs" />
     <Compile Include="Unity\ObjectInfo.cs" />
     <Compile Include="Unity\RTTIBaseClassDescriptor.cs" />
     <Compile Include="Unity\RTTIClassHierarchyDescriptor.cs" />
@@ -57,8 +58,6 @@
     <Compile Include="Unity\RTTI\TypeNode.cs" />
     <Compile Include="Unity\ClassIDDatabase.cs" />
     <Compile Include="Unity\UnityFile.cs" />
-    <Compile Include="Unity\UnityFileHeader.cs" />
-    <Compile Include="Unity\UnityFileMetadata.cs" />
     <Compile Include="Utilities\DataReader.cs" />
     <Compile Include="Utilities\VersionComparison.cs" />
   </ItemGroup>

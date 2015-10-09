@@ -14,10 +14,13 @@ namespace Modicite.Unity {
 
         }
 
-        public static FileIdentifier Read(DataReader reader) {
+        public static FileIdentifier Read(DataReader reader, bool includeAssetPath) {
             FileIdentifier fi = new FileIdentifier();
 
-            fi.AssetPath = reader.ReadString();
+            if (includeAssetPath) {
+                fi.AssetPath = reader.ReadString();
+            }
+
             fi.GUID = reader.ReadBytes(16);
             fi.Type = reader.ReadInt32();
             fi.FilePath = reader.ReadString();

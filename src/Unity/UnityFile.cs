@@ -1,9 +1,8 @@
 using System;
 using System.IO;
 using System.Text;
-using Modicite.Utilities;
 using System.Collections.Generic;
-
+using Modicite.Utilities;
 using Modicite.Unity.RTTI;
 
 namespace Modicite.Unity {
@@ -11,46 +10,74 @@ namespace Modicite.Unity {
     class UnityFile {
 
         private string filename;
-        
-        public UnityFileHeader Header;
-        public UnityFileMetadata Metadata;
-        public byte[] ObjectData = new byte[0];
+
+        public int FormatVersion = 0;
+        public bool IsLittleEndian = true;
+
+        public string UnityVersion = null;
+        public int RTTIAttributes = 0;
+        public Dictionary<int, TypeNode> BaseClasses = new Dictionary<int, TypeNode>();
+
+        public List<FileIdentifier> ExternalFiles = new List<FileIdentifier>();
+        public List<ObjectData> Objects = new List<ObjectData>();
 
 
         private UnityFile(string filename) {
             this.filename = filename;
         }
 
-        public static UnityFile Load(string filename, bool loadObjectData) {
+        public static UnityFile Load(string filename) {
             UnityFile uf = new UnityFile(filename);
 
-            DataReader reader = DataReader.OpenFile(filename, 1000000);
-            reader.IsLittleEndian = false;
+            DataReader reader = DataReader.OpenFile(filename, false);
 
-            uf.Header = UnityFileHeader.Read(reader);
+            int metadataSize = reader.ReadInt32();
+            int fileSize = reader.ReadInt32();
+            uf.FormatVersion = reader.ReadInt32();
+            int dataOffset = reader.ReadInt32();
 
-            if (uf.Header.Version < 9) {
-                throw new FormatException("This does not support deserialization of files for Unity versions 3.4 and older.");
+            if (uf.FormatVersion > 8) {
+                uf.IsLittleEndian = reader.ReadByte() == 0;
+                reader.JumpTo(fileSize - metadataSize + 1);
             }
 
-            if (uf.Header.Version >= 14) {
-                throw new FormatException("This does not support deserialization of files for Unity versions 5.0 and newer.");
+            reader.IsLittleEndian = uf.IsLittleEndian;
+
+            if (uf.FormatVersion > 7) {
+                uf.UnityVersion = reader.ReadString();
+                uf.RTTIAttributes = reader.ReadInt32();
             }
 
-            reader.IsLittleEndian = uf.Header.Endianness == 0;
+            int numberOfBaseClasses = reader.ReadInt32();
 
-            uf.Metadata = UnityFileMetadata.Read(reader);
+            for (int i = 0; i < numberOfBaseClasses; i++) {
+                int classId = reader.ReadInt32();
+                TypeNode classNode = TypeNode.Read(reader);
+                uf.BaseClasses[classId] = classNode;
+            }
+
+            int numberOfObjectDataInstances = reader.ReadInt32();
+
+            List<ObjectInfo> objectDataPointers = new List<ObjectInfo>();
+            for (int i = 0; i < numberOfObjectDataInstances; i++) {
+                objectDataPointers.Add(ObjectInfo.Read(reader, uf.FormatVersion > 13));
+            }
+
+            int numberOfExternalFiles = reader.ReadInt32();
             
-            if (loadObjectData) {
-                reader.JumpTo(uf.Header.DataOffset);
-                uf.ObjectData = reader.ReadRemainingBytes();
+            for (int i = 0; i < numberOfExternalFiles; i++) {
+                uf.ExternalFiles.Add(FileIdentifier.Read(reader, uf.FormatVersion > 5));
             }
 
+            foreach (ObjectInfo oi in objectDataPointers) {
+                uf.Objects.Add(ObjectData.Read(reader, oi, dataOffset));
+            }
+            
             reader.Close();
 
             return uf;
         }
-
+        
         
         public void ExportHeaderToFile(string fileName) {
             Dictionary<string, object> mainObject = new Dictionary<string, object>();

@@ -19,18 +19,18 @@ namespace Modicite.Utilities {
             this.IsLittleEndian = IsLittleEndian;
         }
 
-        public static DataReader OpenFile(string filename, long maxBuffer, bool littleEndian = true) {
+        public static DataReader OpenFile(string filename, bool littleEndian, long maxBuffer = 1000000) {
             FileStream stream = new FileStream(filename, FileMode.Open);
             stream.Position = 0;
             stream.Flush(); //Is this necessary?
             return new DataReader(stream, maxBuffer, littleEndian);
         }
 
-        public static DataReader FromBytes(byte[] data, bool littleEndian = true) {
+        public static DataReader FromBytes(byte[] data, bool littleEndian, long maxBuffer = 1000000) {
             MemoryStream stream = new MemoryStream(data, false);
             stream.Position = 0;
             stream.Flush(); //Is this necessary?
-            return new DataReader(stream, Int32.MaxValue, littleEndian); //Is this safe?
+            return new DataReader(stream, maxBuffer, littleEndian); //Is this safe?
         }
 
 

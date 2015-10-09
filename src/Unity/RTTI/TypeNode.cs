@@ -11,8 +11,8 @@ namespace Modicite.Unity.RTTI {
         public int IsArray;
         public int Version;
         public int MetaFlag;
-        public int NumberOfChildren;
-        public TypeNode[] Children;
+        public TypeNode[] Children; //TypeNodes in UnityFiles are not meant to be modified just yet, and will
+                                    //as such remain non-generic for now.  Turtles!
 
 
         private TypeNode() {
@@ -29,10 +29,11 @@ namespace Modicite.Unity.RTTI {
             tn.IsArray = reader.ReadInt32();
             tn.Version = reader.ReadInt32();
             tn.MetaFlag = reader.ReadInt32();
-            tn.NumberOfChildren = reader.ReadInt32();
-            tn.Children = new TypeNode[tn.NumberOfChildren];
 
-            for (int i = 0; i < tn.NumberOfChildren; i++) {
+            int numberOfChildren = reader.ReadInt32();
+            tn.Children = new TypeNode[numberOfChildren];
+
+            for (int i = 0; i < numberOfChildren; i++) {
                 tn.Children[i] = TypeNode.Read(reader);
             }
 
