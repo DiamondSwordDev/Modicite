@@ -59,6 +59,8 @@
     <Compile Include="Unity\ClassIDDatabase.cs" />
     <Compile Include="Unity\UnityFile.cs" />
     <Compile Include="Utilities\DataReader.cs" />
+    <Compile Include="Utilities\DataWriter.cs" />
+    <Compile Include="Utilities\ListAdapterStream.cs" />
     <Compile Include="Utilities\VersionComparison.cs" />
   </ItemGroup>
   <ItemGroup>

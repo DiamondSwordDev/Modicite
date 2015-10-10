@@ -10,7 +10,7 @@ namespace Modicite.Unity {
         public int TypeID;
         public short ClassID;
         public short ScriptTypeIndex = 0;
-        public bool IsStripped;
+        public short IsStripped;
 
 
         private ObjectInfo() {
@@ -28,9 +28,9 @@ namespace Modicite.Unity {
 
             if (unity5Formatting) {
                 oi.ScriptTypeIndex = reader.ReadInt16();
-                oi.IsStripped = reader.ReadBoolean();
+                oi.IsStripped = reader.ReadBoolean() ? (short)1 : (short)0;
             } else {
-                oi.IsStripped = reader.ReadInt16() != 0;
+                oi.IsStripped = reader.ReadInt16();
             }
 
             return oi;

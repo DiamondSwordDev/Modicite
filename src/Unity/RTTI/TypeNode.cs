@@ -39,5 +39,20 @@ namespace Modicite.Unity.RTTI {
 
             return tn;
         }
+
+        public void Write(DataWriter writer) {
+            writer.WriteString(Type);
+            writer.WriteString(Name);
+            writer.WriteInt32(ByteSize);
+            writer.WriteInt32(Index);
+            writer.WriteInt32(IsArray);
+            writer.WriteInt32(Version);
+            writer.WriteInt32(MetaFlag);
+
+            writer.WriteInt32(Children.Length);
+            foreach (TypeNode childNode in Children) {
+                childNode.Write(writer);
+            }
+        }
     }
 }

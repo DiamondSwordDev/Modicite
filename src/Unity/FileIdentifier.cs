@@ -27,5 +27,15 @@ namespace Modicite.Unity {
 
             return fi;
         }
+
+        public void Write(DataWriter writer, bool includeAssetPath) {
+            if (includeAssetPath) {
+                writer.WriteString(AssetPath);
+            }
+
+            writer.WriteBytes(GUID);
+            writer.WriteInt32(Type);
+            writer.WriteString(FilePath);
+        }
     }
 }

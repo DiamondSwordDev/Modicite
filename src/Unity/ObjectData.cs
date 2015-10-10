@@ -10,7 +10,7 @@ namespace Modicite.Unity {
         public int TypeID;
         public short ClassID;
         public short ScriptTypeIndex;
-        public bool IsStripped;
+        public short IsStripped;
         public byte[] Bytes;
 
 
@@ -31,6 +31,21 @@ namespace Modicite.Unity {
             od.Bytes = reader.ReadBytes(info.ByteSize);
 
             return od;
+        }
+
+        public void Write(DataWriter writer, int offset, bool unity5Formatting) {
+            writer.WriteInt32(ObjectID);
+            writer.WriteInt32(offset);
+            writer.WriteInt32(Bytes.Length);
+            writer.WriteInt32(TypeID);
+            writer.WriteInt16(ClassID);
+
+            if (unity5Formatting) {
+                writer.WriteInt16(ScriptTypeIndex);
+                writer.WriteBoolean(IsStripped != 0);
+            } else {
+                writer.WriteInt16(IsStripped);
+            }
         }
     }
 }

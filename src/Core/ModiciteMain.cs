@@ -3,6 +3,7 @@ using System.IO;
 using System.Collections.Generic;
 using Modicite.Unity;
 using Modicite.Unity.RTTI;
+using System.Security.Cryptography;
 
 namespace Modicite.Core {
 
@@ -12,6 +13,13 @@ namespace Modicite.Core {
             Console.ForegroundColor = ConsoleColor.Cyan;
             Console.WriteLine("Modicite v1.0.0\nby Greenlock and Nathan2055\n");
             Console.ResetColor();
+            
+            UnityFile uf = UnityFile.Load("./level0");
+            uf.Save("./level0mod");
+            
+            Console.ReadKey();
+
+            return;
 
             CommandLineArguments arguments = CommandLineArguments.Parse(new string[] { "-d", "./game", "./output" });
             if (arguments == null) {
@@ -27,6 +35,16 @@ namespace Modicite.Core {
             }
 
             Console.ReadKey();
+        }
+
+        static string GetSHA256(string filename) {
+            SHA256Managed hashstring = new SHA256Managed();
+            byte[] hash = hashstring.ComputeHash(File.ReadAllBytes(filename));
+            string hashString = string.Empty;
+            foreach (byte x in hash) {
+                hashString += String.Format("{0:x2}", x);
+            }
+            return hashString;
         }
 
 
@@ -155,7 +173,7 @@ namespace Modicite.Core {
                 Console.Write("Loading Unity data file '" + dataFileEntry.name + "'... ");
                 UnityFile uf;
                 try {
-                    uf = UnityFile.Load(entryPath, true);
+                    uf = UnityFile.Load(entryPath);
                     Console.ForegroundColor = ConsoleColor.Green;
                     Console.WriteLine("Done.");
                     Console.ResetColor();
@@ -170,7 +188,7 @@ namespace Modicite.Core {
 
                 Console.Write("Exporting file header from '" + dataFileEntry.name + "'... ");
                 try {
-                    uf.ExportHeaderToFile(outputDir + "./unity-data/" + dataFileEntry.name + "/header.json");
+                    //uf.ExportHeaderToFile(outputDir + "./unity-data/" + dataFileEntry.name + "/header.json");
                     Console.ForegroundColor = ConsoleColor.Green;
                     Console.WriteLine("Done.");
                     Console.ResetColor();
@@ -184,7 +202,7 @@ namespace Modicite.Core {
                 List<string> exportFailures = new List<string>();
 
                 int count = 1;
-                foreach (ObjectInfo oi in uf.Metadata.ObjectInfoList) {
+                /*foreach (ObjectInfo oi in uf.Metadata.ObjectInfoList) {
                     Console.CursorLeft = 0;
                     Console.Write("Exporting object data from '" + dataFileEntry.name + "'... " + count.ToString() + "/" + uf.Metadata.NumberOfObjectInfoListMembers.ToString());
                     
@@ -209,7 +227,7 @@ namespace Modicite.Core {
                     }
                     
                     count++;
-                }
+                }*/
                 Console.Write(" - ");
                 Console.ForegroundColor = ConsoleColor.Green;
                 Console.WriteLine("Done.");

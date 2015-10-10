@@ -18,8 +18,7 @@ namespace Modicite.Unity.RTTI {
                 throw new InvalidOperationException("The class ID database must be loaded before the RTTI database is loaded.");
             }
 
-            DataReader reader = DataReader.OpenFile(filename, 1000000);
-            reader.IsLittleEndian = false;
+            DataReader reader = DataReader.OpenFile(filename, false);
 
             Version = reader.ReadInt32();
             

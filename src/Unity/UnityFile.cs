@@ -20,7 +20,7 @@ namespace Modicite.Unity {
 
         public List<FileIdentifier> ExternalFiles = new List<FileIdentifier>();
         public List<ObjectData> Objects = new List<ObjectData>();
-
+        
 
         private UnityFile(string filename) {
             this.filename = filename;
@@ -31,6 +31,8 @@ namespace Modicite.Unity {
 
             DataReader reader = DataReader.OpenFile(filename, false);
 
+            #region Header
+
             int metadataSize = reader.ReadInt32();
             int fileSize = reader.ReadInt32();
             uf.FormatVersion = reader.ReadInt32();
@@ -38,10 +40,20 @@ namespace Modicite.Unity {
 
             if (uf.FormatVersion > 8) {
                 uf.IsLittleEndian = reader.ReadByte() == 0;
-                reader.JumpTo(fileSize - metadataSize + 1);
+                reader.ReadBytes(3);
             }
 
             reader.IsLittleEndian = uf.IsLittleEndian;
+
+            #endregion
+
+            #region Metadata
+
+            if (uf.FormatVersion < 9) {
+                reader.JumpTo(fileSize - metadataSize); //Used to be 'F - M + 1'
+            }
+            
+            #region Class Hierarchy Descriptor
 
             if (uf.FormatVersion > 7) {
                 uf.UnityVersion = reader.ReadString();
@@ -56,6 +68,12 @@ namespace Modicite.Unity {
                 uf.BaseClasses[classId] = classNode;
             }
 
+            if (uf.FormatVersion > 7) {
+                reader.ReadBytes(4);
+            }
+
+            #endregion
+
             int numberOfObjectDataInstances = reader.ReadInt32();
 
             List<ObjectInfo> objectDataPointers = new List<ObjectInfo>();
@@ -69,6 +87,8 @@ namespace Modicite.Unity {
                 uf.ExternalFiles.Add(FileIdentifier.Read(reader, uf.FormatVersion > 5));
             }
 
+            #endregion
+
             foreach (ObjectInfo oi in objectDataPointers) {
                 uf.Objects.Add(ObjectData.Read(reader, oi, dataOffset));
             }
@@ -77,9 +97,91 @@ namespace Modicite.Unity {
 
             return uf;
         }
+
+        public void Save(string newFilename = null) {
+            //This always saves in little-endian format.
+
+            #region Metadata
+
+            List<byte> metadataSection = new List<byte>();
+            DataWriter metadataWriter = DataWriter.FromList(metadataSection, true);
+
+            #region Class Hierarchy Descriptor
+
+            if (FormatVersion > 7) {
+                metadataWriter.WriteString(UnityVersion);
+                metadataWriter.WriteInt32(RTTIAttributes);
+            }
+
+            metadataWriter.WriteInt32(BaseClasses.Count);
+
+            foreach (int baseClass in BaseClasses.Keys) {
+                metadataWriter.WriteInt32(baseClass);
+                BaseClasses[baseClass].Write(metadataWriter);
+            }
+
+            if (FormatVersion > 7) {
+                metadataWriter.WriteBytes(new byte[] { 0, 0, 0, 0 });
+            }
+
+            #endregion
+
+            metadataWriter.WriteInt32(Objects.Count);
+
+            int currentOffset = 0;
+            foreach (ObjectData od in Objects) {
+                od.Write(metadataWriter, currentOffset, FormatVersion > 13);
+                currentOffset += od.Bytes.Length;
+            }
+
+            metadataWriter.WriteInt32(ExternalFiles.Count);
+
+            foreach (FileIdentifier f in ExternalFiles) {
+                f.Write(metadataWriter, FormatVersion > 5);
+            }
+
+            #endregion
+
+            #region Header and Object Data
+
+            DataWriter fileWriter = DataWriter.OpenFile(newFilename == null ? filename : newFilename, false);
+
+            fileWriter.WriteInt32(metadataSection.Count);
+
+            int headerSize = 16 + (FormatVersion > 8 ? 4 : 0);
+            fileWriter.WriteInt32(metadataSection.Count + currentOffset + headerSize);
+
+            fileWriter.WriteInt32(FormatVersion);
+
+            if (FormatVersion > 8) {
+                fileWriter.WriteInt32(headerSize + metadataSection.Count);
+
+                fileWriter.IsLittleEndian = true;
+
+                fileWriter.WriteBytes(metadataSection.ToArray());
+
+                foreach (ObjectData od in Objects) {
+                    fileWriter.WriteBytes(od.Bytes);
+                }
+            } else {
+                fileWriter.WriteInt32(headerSize);
+
+                fileWriter.IsLittleEndian = true;
+
+                foreach (ObjectData od in Objects) {
+                    fileWriter.WriteBytes(od.Bytes);
+                }
+
+                fileWriter.WriteBytes(metadataSection.ToArray());
+            }
+
+            #endregion
+
+            fileWriter.Close();
+        }
         
-        
-        public void ExportHeaderToFile(string fileName) {
+
+        /*public void ExportHeaderToFile(string fileName) {
             Dictionary<string, object> mainObject = new Dictionary<string, object>();
 
             Dictionary<string, object> headerObject = new Dictionary<string, object>();
@@ -125,7 +227,7 @@ namespace Modicite.Unity {
             File.WriteAllText(fileName, GetFormattedJson(SimpleJson.SimpleJson.SerializeObject(mainObject)));
         }
         
-        public void ExportObjectToFile(ObjectInfo objectInfo, string fileName, string failureFileName) {
+        /*public void ExportObjectToFile(ObjectInfo objectInfo, string fileName, string failureFileName) {
             Dictionary<string, object> fileObject = new Dictionary<string, object>();
             fileObject["objectID"] = objectInfo.ObjectID;
             if (objectInfo.ClassID == 114) {
@@ -335,6 +437,6 @@ namespace Modicite.Unity {
                 }
             }
             return formattedString;
-        }
+        }*/
     }
 }
