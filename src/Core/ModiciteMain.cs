@@ -13,10 +13,23 @@ namespace Modicite.Core {
             Console.ForegroundColor = ConsoleColor.Cyan;
             Console.WriteLine("Modicite v1.0.0\nby Greenlock and Nathan2055\n");
             Console.ResetColor();
-            
-            UnityFile uf = UnityFile.Load("./level0");
-            uf.Save("./level0mod");
-            
+
+            UnityFile uf = UnityFile.Load("./mainData");
+            uf.DumpMeta(3000);
+
+            //UnityFile uf2 = UnityFile.Load("./level1");
+
+            /*byte[] originalBytes = File.ReadAllBytes("./level1");
+            byte[] newBytes = File.ReadAllBytes("./level1mod");
+
+            string x = "";
+            for (int i = 0; i < Math.Max(originalBytes.Length, newBytes.Length); i++) {
+                string old = originalBytes.Length > i ? originalBytes[i].ToString().PadLeft(3, ' ') : "   ";
+                string @new = newBytes.Length > i ? newBytes[i].ToString().PadLeft(3, ' ') : "   ";
+                x += i.ToString().PadLeft(8, '0') + " | " + old + " " + @new + "\n";
+            }
+            File.WriteAllText("./bytecompare.txt", x);*/
+
             Console.ReadKey();
 
             return;

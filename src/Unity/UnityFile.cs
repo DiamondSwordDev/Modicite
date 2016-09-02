@@ -20,6 +20,9 @@ namespace Modicite.Unity {
 
         public List<FileIdentifier> ExternalFiles = new List<FileIdentifier>();
         public List<ObjectData> Objects = new List<ObjectData>();
+
+        public List<ObjectInfo> ObjectInfos = new List<ObjectInfo>();
+        public byte[] __Metadata__ = new byte[0];
         
 
         private UnityFile(string filename) {
@@ -52,7 +55,15 @@ namespace Modicite.Unity {
             if (uf.FormatVersion < 9) {
                 reader.JumpTo(fileSize - metadataSize); //Used to be 'F - M + 1'
             }
-            
+
+            uf.__Metadata__ = reader.ReadBytes(metadataSize);
+
+            reader.JumpTo(16 + (uf.FormatVersion > 8 ? 4 : 0));
+
+            if (uf.FormatVersion < 9) {
+                reader.JumpTo(fileSize - metadataSize); //Used to be 'F - M + 1'
+            }
+
             #region Class Hierarchy Descriptor
 
             if (uf.FormatVersion > 7) {
@@ -81,6 +92,8 @@ namespace Modicite.Unity {
                 objectDataPointers.Add(ObjectInfo.Read(reader, uf.FormatVersion > 13));
             }
 
+            uf.ObjectInfos = objectDataPointers;
+
             int numberOfExternalFiles = reader.ReadInt32();
             
             for (int i = 0; i < numberOfExternalFiles; i++) {
@@ -92,14 +105,17 @@ namespace Modicite.Unity {
             foreach (ObjectInfo oi in objectDataPointers) {
                 uf.Objects.Add(ObjectData.Read(reader, oi, dataOffset));
             }
-            
+
             reader.Close();
 
             return uf;
         }
 
         public void Save(string newFilename = null) {
-            //This always saves in little-endian format.
+            //This always saves in little-endian format:
+            //- Metadata will always be little-endian.
+            //- Header will always be big-endian as per the file format.
+            //- Object Data follows this.IsLittleEndian
 
             #region Metadata
 
@@ -131,7 +147,8 @@ namespace Modicite.Unity {
             int currentOffset = 0;
             foreach (ObjectData od in Objects) {
                 od.Write(metadataWriter, currentOffset, FormatVersion > 13);
-                currentOffset += od.Bytes.Length;
+                metadataWriter.WriteInt64(0);
+                currentOffset += od.Bytes.Length + 8;
             }
 
             metadataWriter.WriteInt32(ExternalFiles.Count);
@@ -139,6 +156,8 @@ namespace Modicite.Unity {
             foreach (FileIdentifier f in ExternalFiles) {
                 f.Write(metadataWriter, FormatVersion > 5);
             }
+
+            metadataWriter.WriteByte(0);
 
             #endregion
 
@@ -156,7 +175,10 @@ namespace Modicite.Unity {
             if (FormatVersion > 8) {
                 fileWriter.WriteInt32(headerSize + metadataSection.Count);
 
-                fileWriter.IsLittleEndian = true;
+                fileWriter.WriteByte(IsLittleEndian ? (byte)0 : (byte)1);
+                fileWriter.WriteBytes(new byte[] { 0, 0, 0 });
+
+                fileWriter.IsLittleEndian = IsLittleEndian;
 
                 fileWriter.WriteBytes(metadataSection.ToArray());
 
@@ -166,7 +188,7 @@ namespace Modicite.Unity {
             } else {
                 fileWriter.WriteInt32(headerSize);
 
-                fileWriter.IsLittleEndian = true;
+                fileWriter.IsLittleEndian = IsLittleEndian;
 
                 foreach (ObjectData od in Objects) {
                     fileWriter.WriteBytes(od.Bytes);
@@ -178,6 +200,27 @@ namespace Modicite.Unity {
             #endregion
 
             fileWriter.Close();
+        }
+
+        public void DumpMeta(int max) {
+            string metaDump = "ID   | Type | Index   | Size    | Extra\n";
+
+            for (int i = 0; i < ObjectInfos.Count && i < max; i++) {
+                ObjectInfo oi = ObjectInfos[i];
+
+                metaDump += oi.ObjectID.ToString().PadLeft(4, ' ') + " | ";
+                metaDump += oi.ClassID.ToString().PadLeft(4, ' ') + " | ";
+                metaDump += oi.ByteStart.ToString().PadLeft(7, ' ') + " | ";
+                metaDump += oi.ByteSize.ToString().PadLeft(7, ' ') + " | ";
+                if (i != ObjectInfos.Count - 1) {
+                    metaDump += (ObjectInfos[i+1].ByteStart - (oi.ByteSize + oi.ByteStart)).ToString().PadLeft(7, ' ');
+                } else { 
+                    metaDump += "N/A";
+                }
+                metaDump += "\n";
+            }
+
+            File.WriteAllText("./metadump.txt", metaDump);
         }
         
 

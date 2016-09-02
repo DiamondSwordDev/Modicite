@@ -4,7 +4,7 @@ namespace Modicite.Unity {
 
     class ObjectInfo {
 
-        public int ObjectID;
+        public long ObjectID;
         public int ByteStart;
         public int ByteSize;
         public int TypeID;
@@ -20,7 +20,12 @@ namespace Modicite.Unity {
         public static ObjectInfo Read(DataReader reader, bool unity5Formatting) {
             ObjectInfo oi = new ObjectInfo();
 
-            oi.ObjectID = reader.ReadInt32();
+            if (unity5Formatting) {
+                oi.ObjectID = reader.ReadInt64();
+            } else {
+                oi.ObjectID = reader.ReadInt32();
+            }
+            
             oi.ByteStart = reader.ReadInt32();
             oi.ByteSize = reader.ReadInt32();
             oi.TypeID = reader.ReadInt32();

@@ -6,7 +6,7 @@ namespace Modicite.Unity {
 
     class ObjectData {
 
-        public int ObjectID;
+        public long ObjectID;
         public int TypeID;
         public short ClassID;
         public short ScriptTypeIndex;
@@ -34,7 +34,12 @@ namespace Modicite.Unity {
         }
 
         public void Write(DataWriter writer, int offset, bool unity5Formatting) {
-            writer.WriteInt32(ObjectID);
+            if (unity5Formatting) {
+                writer.WriteInt64(ObjectID);
+            } else {
+                writer.WriteInt32((int)ObjectID);
+            }
+
             writer.WriteInt32(offset);
             writer.WriteInt32(Bytes.Length);
             writer.WriteInt32(TypeID);
